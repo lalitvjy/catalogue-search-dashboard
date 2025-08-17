@@ -19,8 +19,8 @@ export async function POST(req: Request) {
   if (attrs) {
     await db.skuAttr.upsert({
       where: { skuId: sku.id },
-      update: { attrs },
-      create: { skuId: sku.id, attrs },
+      update: { attrs: attrs as any },
+      create: { skuId: sku.id, attrs: attrs as any },
     })
   }
   return NextResponse.json({ skuId: sku.id })
