@@ -1,8 +1,8 @@
 {
   "framework": "nextjs",
-  "buildCommand": "cd catalogue-search && npm run build",
-  "outputDirectory": "catalogue-search/.next",
-  "installCommand": "cd catalogue-search && npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
   "functions": {
     "src/app/api/**/*.ts": {
       "maxDuration": 30
