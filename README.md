@@ -1,36 +1,109 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Catalogue Similarity Search Dashboard
 
-## Getting Started
+A production-ready MVP for a multi-tenant catalogue similarity search app used by internal B2B teams.
 
-First, run the development server:
+## Tech Stack
 
+- **Frontend**: Next.js 14 (App Router) with TypeScript and Tailwind CSS
+- **Authentication**: NextAuth.js (Credentials + Google OAuth)
+- **Database**: Neon PostgreSQL with Prisma ORM
+- **Vector Search**: Qdrant
+- **File Storage**: Vercel Blob
+- **Hosting**: Vercel
+
+## Features
+
+- Multi-tenant isolation (brand-scoped data)
+- Image similarity search via vector embeddings
+- SKU management with attributes
+- Filter results by type, category, occasion, diamond weight
+- One-click SKU copying
+- Admin CLI tools for brand and user management
+
+## Quick Start
+
+### 1. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Set up Environment Variables
+Copy `env.example` to `.env.local` and fill in your values:
+```bash
+cp env.example .env.local
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Required environment variables:
+- `DATABASE_URL`: Neon PostgreSQL connection string
+- `NEXTAUTH_SECRET`: Random string for JWT signing
+- `NEXTAUTH_URL`: Your app URL (http://localhost:3000 for dev)
+- `GOOGLE_CLIENT_ID` & `GOOGLE_CLIENT_SECRET`: Google OAuth credentials
+- `QDRANT_URL` & `QDRANT_API_KEY`: Qdrant cloud instance credentials
+- `EMBED_ENDPOINT` & `OPENAI_API_KEY`: Your embedding service
+- `BLOB_READ_WRITE_TOKEN`: Vercel Blob token
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 3. Database Setup
+```bash
+npx prisma migrate dev
+```
 
-## Learn More
+### 4. Development Server
+```bash
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Admin Operations
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Create a Brand
+```bash
+npx tsx scripts/create-brand.ts "Brand Name" brand-slug 1024
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Tag User to Brand
+```bash
+npx tsx scripts/tag-user.ts user@company.com brand-slug
+```
 
-## Deploy on Vercel
+### Backfill Embeddings
+```bash
+npx tsx scripts/backfill-embeds.ts brand-slug
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API Endpoints
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Authentication
+- `POST /api/auth/signin` - Sign in with credentials
+- `GET /api/me` - Get current user and brand info
+
+### Ingestion
+- `POST /api/ingest/sku` - Create/update SKU with attributes
+- `POST /api/ingest/image` - Get signed upload URL
+- `POST /api/ingest/embed` - Generate embeddings for SKU
+
+### Search
+- `POST /api/search/image` - Search similar images
+- `GET /api/filters` - Get available filter options
+
+## Multi-Tenant Architecture
+
+- **Database**: All tables scoped by `brandId`
+- **Vector Search**: Separate Qdrant collection per brand (`brand_${slug}`)
+- **Authentication**: Users belong to one brand
+- **API Routes**: All endpoints enforce brand isolation
+
+## Deployment
+
+1. Set environment variables in Vercel dashboard
+2. Connect Neon database
+3. Set up Qdrant cloud instance
+4. Deploy to Vercel
+
+## Acceptance Criteria
+
+- ✅ Login works via Credentials and Google
+- ✅ `/api/me` returns user + brand
+- ✅ `/api/ingest/sku` upserts SKU + attributes
+- ✅ `/api/ingest/embed` writes to brand's Qdrant collection
+- ✅ `/api/search/image` returns results with confidence and filters
+- ✅ UI shows grid with image, filename, SKU, confidence, Copy button
+- ✅ Brand isolation enforced across all endpoints

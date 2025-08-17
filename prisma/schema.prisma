@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Brand {
+  id               String @id @default(cuid())
+  name             String
+  slug             String @unique
+  qdrantCollection String
+  users            User[]
+  skus             Sku[]
+}
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String?
+  googleSub    String?
+  brandId      String?
+  brand        Brand?  @relation(fields: [brandId], references: [id])
+  role         String @default("user")
+  name         String?
+  createdAt    DateTime @default(now())
+}
+
+model Sku {
+  id       String @id @default(cuid())
+  brandId  String
+  brand    Brand  @relation(fields: [brandId], references: [id])
+  skuCode  String
+  fileName String
+  imageUrl String
+  title    String?
+  attr     SkuAttr?
+
+  @@index([brandId, skuCode], name: "brand_sku")
+}
+
+model SkuAttr {
+  id    String @id @default(cuid())
+  skuId String @unique
+  sku   Sku    @relation(fields: [skuId], references: [id])
+  attrs Json
+}
+
+model SearchLog {
+  id        String   @id @default(cuid())
+  userId    String
+  brandId   String
+  queryType String
+  threshold Float
+  topK      Int
+  tookMs    Int
+  filters   Json?
+  createdAt DateTime @default(now())
+}

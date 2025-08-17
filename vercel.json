@@ -1,0 +1,14 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "cd catalogue-search && npm run build",
+  "outputDirectory": "catalogue-search/.next",
+  "installCommand": "cd catalogue-search && npm install",
+  "functions": {
+    "src/app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  },
+  "env": {
+    "SKIP_ENV_VALIDATION": "1"
+  }
+}
