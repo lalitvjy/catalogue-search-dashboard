@@ -4,7 +4,7 @@ export const skuUpsertSchema = z.object({
   title: z.string().optional(),
   fileName: z.string(),
   imageUrl: z.string().url(),
-  attrs: z.record(z.any()).optional(),
+  attrs: z.record(z.string(), z.any()).optional(),
 })
 export const searchImageSchema = z.object({
   imageUrl: z.string().url(),
