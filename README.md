@@ -89,6 +89,13 @@ npx tsx scripts/backfill-embeds.ts brand-slug
 - `POST /api/auth/signin` - Sign in with credentials
 - `GET /api/me` - Get current user and brand info
 
+### Search
+- `POST /api/search/image` - Search similar images (brand-scoped)
+  - Requires authentication
+  - Automatically scoped to user's assigned brand collection
+  - Parameters: `file` (image), `limit`, `score_threshold`
+  - Returns results from user's brand collection only
+
 ### Ingestion
 - `POST /api/ingest/sku` - Create/update SKU with attributes
 - `POST /api/ingest/image` - Get signed upload URL

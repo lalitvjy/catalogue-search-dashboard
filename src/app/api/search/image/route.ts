@@ -3,14 +3,37 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { db } from '@/lib/db'
 
+interface ExtendedSession {
+  uid: string
+  brandId: string
+  role: string
+}
+
 export async function POST(req: Request) {
   const t0 = Date.now()
   const session = await getServerSession(authOptions)
   if (!session) return new NextResponse('Unauthorized', { status: 401 })
-  const brandId = (session as any).brandId as string
+  
+  const extendedSession = session as unknown as ExtendedSession
+  const userId = extendedSession.uid
+  const brandId = extendedSession.brandId
+
+  if (!brandId) {
+    return new NextResponse('User not assigned to any brand', { status: 403 })
+  }
 
   const brand = await db.brand.findUnique({ where: { id: brandId } })
   if (!brand) return new NextResponse('Brand Not Found', { status: 404 })
+
+  // Verify user belongs to this brand
+  const user = await db.user.findUnique({ 
+    where: { id: userId },
+    select: { brandId: true }
+  })
+  
+  if (!user || user.brandId !== brandId) {
+    return new NextResponse('Access denied: User not assigned to this brand', { status: 403 })
+  }
 
   try {
     // Parse FormData from the request
@@ -41,8 +64,14 @@ export async function POST(req: Request) {
     externalFormData.append('file', imageBlob, file.name || 'search-image.jpg')
     externalFormData.append('limit', limit)
     externalFormData.append('score_threshold', scoreThreshold)
+    
+    // Add brand collection information to ensure proper scoping
+    externalFormData.append('collection', brand.qdrantCollection)
+    externalFormData.append('brand_id', brand.id)
+    externalFormData.append('brand_slug', brand.slug)
 
     console.log('Calling external API with exact curl parameters')
+    console.log('Searching in collection:', brand.qdrantCollection, 'for brand:', brand.name)
 
     // Call the external image search API with exact headers from curl
     const searchResponse = await fetch('https://image-search-api-760959437216.us-central1.run.app/search/by-image', {
@@ -74,9 +103,9 @@ export async function POST(req: Request) {
     // Transform the results to match our expected format
     // The API returns { matches: [...] } not { results: [...] }
     const matches = searchResults.matches || []
-    const results = matches.map((item: any, index: number) => {
+    const results = matches.map((item: Record<string, unknown>, index: number) => {
       // Extract SKU code from image URL (e.g., "ULG312FBCAA04" from the URL)
-      const urlParts = item.image_url?.split('/') || []
+      const urlParts = (item.image_url as string)?.split('/') || []
       const skuFromUrl = urlParts.find((part: string) => /^[A-Z0-9]{10,}$/.test(part)) || `SKU-${index + 1}`
       
       // Extract file name from image URL (last part)
@@ -89,9 +118,9 @@ export async function POST(req: Request) {
         image_url: item.image_url || '',
         confidence: item.score || 0,
         attributes: {
-          category: item.category || '',
-          tags: item.tags || '',
-          ...item.attributes || {}
+          category: (item.category as string) || '',
+          tags: (item.tags as string) || '',
+          ...(item.attributes as Record<string, unknown>) || {}
         }
       }
     })
@@ -102,13 +131,16 @@ export async function POST(req: Request) {
     // Log the search for analytics
     db.searchLog.create({ 
       data: { 
-        userId: (session as any).uid, 
+        userId, 
         brandId, 
         queryType: 'image', 
         threshold: parseFloat(scoreThreshold), 
         topK: parseInt(limit), 
         tookMs, 
-        filters: {} 
+        filters: {
+          collection: brand.qdrantCollection,
+          brand_slug: brand.slug
+        } 
       } 
     }).catch(() => {})
 
