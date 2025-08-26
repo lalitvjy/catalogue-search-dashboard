@@ -41,13 +41,27 @@ Required environment variables:
 - `QDRANT_URL` & `QDRANT_API_KEY`: Qdrant cloud instance credentials
 - `EMBED_ENDPOINT` & `OPENAI_API_KEY`: Your embedding service
 - `BLOB_READ_WRITE_TOKEN`: Vercel Blob token
+- `BREVO_API_KEY`: Brevo API key for email sending (production)
+- `BREVO_FROM_EMAIL`: Sender email address for transactional emails
 
 ### 3. Database Setup
 ```bash
 npx prisma migrate dev
 ```
 
-### 4. Development Server
+### 4. Email Setup (Production)
+For production email sending, configure Brevo:
+
+1. Get your Brevo API key from [Brevo Dashboard](https://app.brevo.com/settings/keys/api)
+2. Add to your environment variables:
+```bash
+BREVO_API_KEY="xkeysib-your-api-key-here"
+BREVO_FROM_EMAIL="noreply@yourdomain.com"
+```
+
+See `EMAIL_SETUP.md` for detailed setup instructions.
+
+### 5. Development Server
 ```bash
 npm run dev
 ```

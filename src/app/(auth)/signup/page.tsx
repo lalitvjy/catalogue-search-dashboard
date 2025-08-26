@@ -4,10 +4,11 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function Login() {
+export default function Signup() {
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [rememberMe, setRememberMe] = useState(false)
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
@@ -17,19 +18,45 @@ export default function Login() {
     setIsLoading(true)
     setError('')
 
+    if (password !== confirmPassword) {
+      setError('Passwords do not match')
+      setIsLoading(false)
+      return
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        rememberMe: rememberMe.toString(),
-        redirect: false,
-        callbackUrl: '/search'
+      const response = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password }),
       })
 
-      if (result?.error) {
-        setError('Invalid email or password')
-      } else if (result?.ok) {
-        router.push('/search')
+      const data = await response.json()
+
+      if (response.ok) {
+        // Auto sign in after successful signup
+        const result = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+          callbackUrl: '/search'
+        })
+
+        if (result?.ok) {
+          router.push('/search')
+        } else {
+          setError('Account created but sign in failed. Please try signing in manually.')
+        }
+      } else {
+        setError(data.error || 'An error occurred. Please try again.')
       }
     } catch (error) {
       setError('An error occurred. Please try again.')
@@ -46,8 +73,8 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Catalogue Search</h1>
-          <p className="text-gray-600">Sign in to your account</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
+          <p className="text-gray-600">Sign up for your account</p>
         </div>
       </div>
 
@@ -59,6 +86,25 @@ export default function Login() {
                 {error}
               </div>
             )}
+
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                Full Name
+              </label>
+              <div className="mt-1">
+                <input
+                  id="name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Enter your full name"
+                />
+              </div>
+            </div>
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -88,7 +134,7 @@ export default function Login() {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -98,27 +144,22 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
+            <div>
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                Confirm Password
+              </label>
+              <div className="mt-1">
                 <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Confirm your password"
                 />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
-              <div className="text-sm">
-                <Link
-                  href="/forgot-password"
-                  className="text-blue-600 hover:text-blue-500 font-medium"
-                >
-                  Forgot your password?
-                </Link>
               </div>
             </div>
 
@@ -128,7 +169,7 @@ export default function Login() {
                 disabled={isLoading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
-                {isLoading ? 'Signing in...' : 'Sign in'}
+                {isLoading ? 'Creating account...' : 'Create account'}
               </button>
             </div>
           </form>
@@ -166,19 +207,19 @@ export default function Login() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                <span className="ml-2">Sign in with Google</span>
+                <span className="ml-2">Sign up with Google</span>
               </button>
             </div>
           </div>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <Link
-                href="/signup"
+                href="/login"
                 className="text-blue-600 hover:text-blue-500 font-medium"
               >
-                Sign up
+                Sign in
               </Link>
             </p>
           </div>
