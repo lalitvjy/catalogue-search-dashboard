@@ -1,14 +1,20 @@
 'use client'
 import { useState } from 'react'
+import { useSession } from 'next-auth/react'
+
+interface ExtendedSession {
+  brandId?: string
+}
 
 interface ImageDropProps {
   onImageUpload: (imageUrl: string) => void
-  onSearchResults?: (results: any[]) => void
+  onSearchResults?: (results: unknown[]) => void
   onSearching?: (searching: boolean) => void
   uploadedImage?: string | null
 }
 
 export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage }: ImageDropProps) {
+  const { data: session } = useSession()
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -69,6 +75,14 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       formData.append('file', file, file.name || 'image.jpg')
       formData.append('limit', '20')
       formData.append('score_threshold', '0.1')
+      
+      // Add brand ID from session if available
+      const extendedSession = session as unknown as ExtendedSession
+      const brandId = extendedSession?.brandId
+      if (brandId) {
+        formData.append('brand_id', brandId)
+        console.log('🔍 Added brand_id to request:', brandId)
+      }
 
       setUploadProgress(50) // FormData prepared
 

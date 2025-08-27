@@ -7,6 +7,10 @@ import ResultsGrid from '@/components/ResultsGrid'
 import FiltersPanel from '@/components/FiltersPanel'
 import LogoutModal from '@/components/LogoutModal'
 
+interface ExtendedSession {
+  brandId?: string
+}
+
 interface Filters {
   category?: string
   tags?: string
@@ -36,7 +40,8 @@ export default function SearchPage() {
     }
 
     // Check if user has brand access
-    const brandId = (session as any).brandId
+    const extendedSession = session as unknown as ExtendedSession
+    const brandId = extendedSession.brandId
     if (!brandId) {
       // User is authenticated but has no brand access
       router.push('/help-center')
@@ -57,7 +62,8 @@ export default function SearchPage() {
   }
 
   // Don't render anything if not authenticated or no brand access (will redirect)
-  if (!session || !(session as any).brandId) {
+  const extendedSession = session as unknown as ExtendedSession
+  if (!session || !extendedSession.brandId) {
     return null
   }
 
@@ -110,6 +116,14 @@ export default function SearchPage() {
       formData.append('file', file)
       formData.append('limit', '20')
       formData.append('score_threshold', '0.1')
+      
+      // Add brand ID from session if available
+      const extendedSession = session as unknown as ExtendedSession
+      const brandId = extendedSession.brandId
+      if (brandId) {
+        formData.append('brand_id', brandId)
+        console.log('🔍 Added brand_id to request:', brandId)
+      }
 
       // Call our API endpoint
       const searchResponse = await fetch('/api/search/image', {
