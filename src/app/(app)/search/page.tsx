@@ -122,7 +122,6 @@ export default function SearchPage() {
       const brandId = extendedSession.brandId
       if (brandId) {
         formData.append('brand_id', brandId)
-        console.log('🔍 Added brand_id to request:', brandId)
       }
 
       // Call our API endpoint

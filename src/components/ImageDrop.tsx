@@ -81,7 +81,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       const brandId = extendedSession?.brandId
       if (brandId) {
         formData.append('brand_id', brandId)
-        console.log('🔍 Added brand_id to request:', brandId)
       }
 
       setUploadProgress(50) // FormData prepared
