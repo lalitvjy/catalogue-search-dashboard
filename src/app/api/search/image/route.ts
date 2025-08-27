@@ -66,15 +66,33 @@ export async function POST(req: Request) {
     externalFormData.append('score_threshold', scoreThreshold)
     
     // Add brand collection information to ensure proper scoping
+    console.log('🔍 Adding brand scoping to external API call:')
+    console.log('  - Collection:', brand.qdrantCollection)
+    console.log('  - Brand ID:', brand.id)
+    console.log('  - Brand slug:', brand.slug)
+    
     externalFormData.append('collection', brand.qdrantCollection)
     externalFormData.append('brand_id', brand.id)
     externalFormData.append('brand_slug', brand.slug)
+
+    // Log the complete FormData being sent
+    console.log('🔍 Complete FormData being sent to external API:')
+    for (const [key, value] of externalFormData.entries()) {
+      console.log(`  - ${key}:`, value)
+    }
 
     console.log('Calling external API with exact curl parameters')
     console.log('Searching in collection:', brand.qdrantCollection, 'for brand:', brand.name)
 
     // Call the external image search API with exact headers from curl
-    const searchResponse = await fetch('https://image-search-api-760959437216.us-central1.run.app/search/by-image', {
+    const searchApiUrl = process.env.SEARCH_API_URL || 'https://image-search-api-760959437216.us-central1.run.app/search/by-image'
+    
+    console.log('🔍 Calling external search API:', searchApiUrl)
+    console.log('🔍 Brand collection:', brand.qdrantCollection)
+    console.log('🔍 Brand ID:', brand.id)
+    console.log('🔍 Brand slug:', brand.slug)
+    
+    const searchResponse = await fetch(searchApiUrl, {
       method: 'POST',
       headers: {
         'sec-ch-ua-platform': '"macOS"',
