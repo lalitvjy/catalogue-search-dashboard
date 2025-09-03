@@ -180,20 +180,40 @@ export async function POST(req: Request) {
     // Transform the results to match our expected format
     // The API returns { results: [...] } directly
     const matches = searchResults.results || searchResults.matches || []
+    
+    console.log('🔍 TRANSFORMATION ANALYSIS:')
+    console.log('   - Raw matches array length:', matches.length)
+    console.log('   - First match sample:', matches[0] ? JSON.stringify(matches[0], null, 2) : 'NO MATCHES')
+    
+    // If no real matches, return empty results instead of dummy data
+    if (!matches || matches.length === 0) {
+      console.log('⚠️  No matches returned from external API - returning empty results')
+      const tookMs = Date.now() - t0
+      return NextResponse.json({ 
+        results: [], 
+        took_ms: tookMs,
+        total_results: 0
+      })
+    }
+    
     const results = matches.map((item: Record<string, unknown>, index: number) => {
-      // Extract SKU code from image URL (e.g., "ULG312FBCAA04" from the URL)
-      const urlParts = (item.image_url as string)?.split('/') || []
-      const skuFromUrl = urlParts.find((part: string) => /^[A-Z0-9]{10,}$/.test(part)) || `SKU-${index + 1}`
+      // Check if this is real data from the API
+      const hasRealSkuId = item.sku_id && typeof item.sku_id === 'string' && item.sku_id !== ''
+      const hasRealConfidence = typeof item.confidence === 'number' && item.confidence > 0
       
-      // Extract file name from image URL (last part)
-      const fileName = urlParts[urlParts.length - 1] || 'Unknown'
+      console.log(`🔍 Item ${index + 1} analysis:`)
+      console.log('   - sku_id:', item.sku_id)
+      console.log('   - sku_code:', item.sku_code) 
+      console.log('   - confidence:', item.confidence)
+      console.log('   - Has real data:', hasRealSkuId && hasRealConfidence)
       
+      // Use the real data from API response directly
       return {
-        sku_id: skuFromUrl,
-        sku_code: skuFromUrl,
-        file_name: fileName,
+        sku_id: item.sku_id || `SKU-${index + 1}`,
+        sku_code: item.sku_code || `SKU-${index + 1}`,
+        file_name: item.file_name || 'Unknown',
         image_url: item.image_url || '',
-        confidence: item.score || 0,
+        confidence: item.confidence || 0,
         attributes: {
           category: (item.category as string) || '',
           tags: (item.tags as string) || '',
