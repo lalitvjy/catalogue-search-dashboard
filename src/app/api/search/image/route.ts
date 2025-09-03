@@ -71,6 +71,8 @@ export async function POST(req: Request) {
 
     // Call the Mirrar Lens API
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
+    console.log('🔍 API URL being used:', searchApiUrl)
+    console.log('🔍 Environment variable MIRRAR_LENS_API_URL:', process.env.MIRRAR_LENS_API_URL)
     
     const searchResponse = await fetch(searchApiUrl, {
       method: 'POST',
