@@ -205,14 +205,19 @@ export async function POST(req: Request) {
       console.log('   - sku_id:', item.sku_id)
       console.log('   - sku_code:', item.sku_code) 
       console.log('   - confidence:', item.confidence)
+      console.log('   - image_url:', item.image_url)
+      console.log('   - public_url:', item.public_url)
       console.log('   - Has real data:', hasRealSkuId && hasRealConfidence)
       
       // Use the real data from API response directly
+      // Check for image URL in different possible fields
+      const imageUrl = item.image_url || item.public_url || ''
+      
       return {
         sku_id: item.sku_id || `SKU-${index + 1}`,
         sku_code: item.sku_code || `SKU-${index + 1}`,
         file_name: item.file_name || 'Unknown',
-        image_url: item.image_url || '',
+        image_url: imageUrl,
         confidence: item.confidence || 0,
         attributes: {
           category: (item.category as string) || '',
