@@ -71,12 +71,17 @@ export async function POST(req: Request) {
     const imageBlob = new Blob([imageBuffer], { type: file.type })
     console.log('Image blob size:', imageBlob.size)
 
-    // Create form data for the Mirrar Lens API
+    // Create form data for the Mirrar Lens API - match exact working format
     const externalFormData = new FormData()
     externalFormData.append('file', imageBlob, file.name || 'search-image.jpg')
     externalFormData.append('brand_id', brand.id)
     externalFormData.append('limit', limit)
     externalFormData.append('score_threshold', scoreThreshold)
+    externalFormData.append('category', '') // Add empty category parameter
+    externalFormData.append('tags', '')     // Add empty tags parameter
+
+    // Get API URL first
+    const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
 
     console.log('🚀 =================================')
     console.log('🚀 SEARCH REQUEST DETAILS')
@@ -96,12 +101,11 @@ export async function POST(req: Request) {
     console.log('   - brand_id:', brand.id)
     console.log('   - limit:', limit)
     console.log('   - score_threshold:', scoreThreshold)
+    console.log('   - category: (empty)')
+    console.log('   - tags: (empty)')
     console.log('🚀 =================================')
     
     console.log('Calling Mirrar Lens API...')
-
-    // Call the Mirrar Lens API
-    const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
     
     // Add timeout and retry logic for reliability
     const controller = new AbortController()
@@ -162,8 +166,8 @@ export async function POST(req: Request) {
     console.log('   - Matches type:', typeof searchResults.matches)
     
     // Transform the results to match our expected format
-    // The API returns { matches: [...] } not { results: [...] }
-    const matches = searchResults.matches || []
+    // The API returns { results: [...] } directly
+    const matches = searchResults.results || searchResults.matches || []
     const results = matches.map((item: Record<string, unknown>, index: number) => {
       // Extract SKU code from image URL (e.g., "ULG312FBCAA04" from the URL)
       const urlParts = (item.image_url as string)?.split('/') || []
