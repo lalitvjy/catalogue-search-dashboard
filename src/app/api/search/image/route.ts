@@ -41,6 +41,18 @@ export async function POST(req: Request) {
     const file = formData.get('file') as File
     const limit = formData.get('limit') as string || '20'
     const scoreThreshold = formData.get('score_threshold') as string || '0.1'
+    const requestedBrandId = formData.get('brand_id') as string
+    
+    // Log what brand IDs we're working with
+    console.log('🔍 BRAND ID ANALYSIS:')
+    console.log('   - Session Brand ID:', brandId)
+    console.log('   - Requested Brand ID:', requestedBrandId)
+    console.log('   - Using Brand ID:', brandId, '(from session)')
+    
+    if (requestedBrandId && requestedBrandId !== brandId) {
+      console.log('⚠️  WARNING: Request brand_id differs from session brand_id!')
+      console.log('   - This means user is trying to search a different brand than assigned')
+    }
     
     if (!file) {
       return new NextResponse('No file provided', { status: 400 })
