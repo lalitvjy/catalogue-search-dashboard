@@ -59,21 +59,38 @@ export async function POST(req: Request) {
     const imageBlob = new Blob([imageBuffer], { type: file.type })
     console.log('Image blob size:', imageBlob.size)
 
-    // Create form data for the Mirrar Lens API
+    // Create form data for the Mirrar Search API
     const externalFormData = new FormData()
     externalFormData.append('file', imageBlob, file.name || 'search-image.jpg')
     externalFormData.append('brand_id', brand.id)
     externalFormData.append('limit', limit)
     externalFormData.append('score_threshold', scoreThreshold)
 
-    console.log('Calling Mirrar Lens API')
+    console.log('Calling Mirrar Search API')
     console.log('Searching for brand ID:', brand.id, 'brand name:', brand.name)
 
-    // Call the Mirrar Lens API
-    const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
+    // Call the Mirrar Search API
+    const searchApiUrl = process.env.MIRRAR_SEARCH_API_URL || 'https://search.mirrar.io/api/search/image'
     
     const searchResponse = await fetch(searchApiUrl, {
       method: 'POST',
+      headers: {
+        'accept': '*/*',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'cache-control': 'no-cache',
+        'dnt': '1',
+        'origin': 'https://search.mirrar.io',
+        'pragma': 'no-cache',
+        'priority': 'u=1, i',
+        'referer': 'https://search.mirrar.io/search',
+        'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"macOS"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36'
+      },
       body: externalFormData
     })
 
