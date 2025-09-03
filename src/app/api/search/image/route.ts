@@ -59,34 +59,21 @@ export async function POST(req: Request) {
     const imageBlob = new Blob([imageBuffer], { type: file.type })
     console.log('Image blob size:', imageBlob.size)
 
-    // Create form data for the external API with exact curl parameters
+    // Create form data for the Mirrar Lens API
     const externalFormData = new FormData()
     externalFormData.append('file', imageBlob, file.name || 'search-image.jpg')
+    externalFormData.append('brand_id', brand.id)
     externalFormData.append('limit', limit)
     externalFormData.append('score_threshold', scoreThreshold)
-    
-    // Add brand collection information to ensure proper scoping
-    externalFormData.append('collection', brand.qdrantCollection)
-    externalFormData.append('brand_id', brand.id)
-    externalFormData.append('brand_slug', brand.slug)
 
-    console.log('Calling external API with exact curl parameters')
-    console.log('Searching in collection:', brand.qdrantCollection, 'for brand:', brand.name)
+    console.log('Calling Mirrar Lens API')
+    console.log('Searching for brand ID:', brand.id, 'brand name:', brand.name)
 
-    // Call the external image search API with exact headers from curl
-    const searchApiUrl = process.env.SEARCH_API_URL || 'https://image-search-api-760959437216.us-central1.run.app/search/by-image'
+    // Call the Mirrar Lens API
+    const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
     
     const searchResponse = await fetch(searchApiUrl, {
       method: 'POST',
-      headers: {
-        'sec-ch-ua-platform': '"macOS"',
-        'Referer': 'https://search.mirrar.com/',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36',
-        'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
-        'DNT': '1',
-        'sec-ch-ua-mobile': '?0',
-        // Don't set Content-Type - let the browser set it with boundary
-      },
       body: externalFormData
     })
 
