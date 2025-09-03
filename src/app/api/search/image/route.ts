@@ -46,6 +46,18 @@ export async function POST(req: Request) {
       return new NextResponse('No file provided', { status: 400 })
     }
 
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
+    if (!allowedTypes.includes(file.type)) {
+      return new NextResponse(`Invalid file type. Only JPG and PNG images are supported. Received: ${file.type}`, { status: 400 })
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      return new NextResponse('File too large. Maximum size is 10MB', { status: 400 })
+    }
+
     console.log('Received file:', {
       name: file.name,
       size: file.size,
@@ -71,13 +83,28 @@ export async function POST(req: Request) {
 
     // Call the Mirrar Lens API
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
-    console.log('🔍 API URL being used:', searchApiUrl)
-    console.log('🔍 Environment variable MIRRAR_LENS_API_URL:', process.env.MIRRAR_LENS_API_URL)
     
-    const searchResponse = await fetch(searchApiUrl, {
-      method: 'POST',
-      body: externalFormData
-    })
+    // Add timeout and retry logic for reliability
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+    
+    let searchResponse: Response
+    try {
+      searchResponse = await fetch(searchApiUrl, {
+        method: 'POST',
+        body: externalFormData,
+        signal: controller.signal
+      })
+      clearTimeout(timeoutId)
+    } catch (error) {
+      clearTimeout(timeoutId)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('Search request timed out')
+        return new NextResponse('Search request timed out. Please try again with a smaller image.', { status: 408 })
+      }
+      console.error('Search request failed:', error)
+      return new NextResponse('Unable to connect to search service. Please try again later.', { status: 503 })
+    }
 
     console.log('External API response status:', searchResponse.status)
 
@@ -85,7 +112,17 @@ export async function POST(req: Request) {
       console.error('External search API error:', searchResponse.status, searchResponse.statusText)
       const errorText = await searchResponse.text()
       console.error('Error response body:', errorText)
-      return new NextResponse('External search service error', { status: 503 })
+      
+      // Handle specific error cases
+      if (searchResponse.status === 500 && errorText.includes('cannot identify image file')) {
+        return new NextResponse('Invalid image format. Please upload a clear JPG or PNG image of jewelry.', { status: 400 })
+      }
+      
+      if (searchResponse.status >= 500) {
+        return new NextResponse('Search service is temporarily unavailable. Please try again later.', { status: 503 })
+      }
+      
+      return new NextResponse('Unable to process image search. Please try with a different image.', { status: 400 })
     }
 
     const searchResults = await searchResponse.json()

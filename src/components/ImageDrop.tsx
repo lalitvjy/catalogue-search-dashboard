@@ -45,16 +45,17 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     setError(null)
     setUploadProgress(0)
 
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      setError('Please select a valid image file (JPG, PNG, etc.)')
+    // Validate file type - only allow JPG and PNG
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
+    if (!allowedTypes.includes(file.type.toLowerCase())) {
+      setError(`Please upload a JPG or PNG image. ${file.type} files are not supported for jewelry search.`)
       return
     }
 
-    // Validate file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024 // 10MB
+    // Validate file size (max 5MB for better performance)
+    const maxSize = 5 * 1024 * 1024 // 5MB
     if (file.size > maxSize) {
-      setError('File size must be less than 10MB')
+      setError(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please use an image smaller than 5MB.`)
       return
     }
 
@@ -264,7 +265,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
               {uploading ? 'Searching...' : 'Drop an image here or click to upload'}
             </div>
             <div className="text-sm text-gray-500">
-              Supports: JPG, PNG, GIF
+              Supports: JPG, PNG (max 5MB) • For best results, use clear photos of jewelry
             </div>
           </div>
         </label>
