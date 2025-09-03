@@ -75,11 +75,18 @@ export async function POST(req: Request) {
     const externalFormData = new FormData()
     externalFormData.append('file', imageBlob, file.name || 'search-image.jpg')
     externalFormData.append('brand_id', brand.id)
+    externalFormData.append('collection', brand.qdrantCollection)
     externalFormData.append('limit', limit)
     externalFormData.append('score_threshold', scoreThreshold)
 
     console.log('Calling Mirrar Lens API')
     console.log('Searching for brand ID:', brand.id, 'brand name:', brand.name)
+    console.log('🔍 FormData being sent:')
+    console.log('  - file:', file.name, '(' + file.size + ' bytes)')
+    console.log('  - brand_id:', brand.id)
+    console.log('  - limit:', limit)
+    console.log('  - score_threshold:', scoreThreshold)
+    console.log('  - collection:', brand.qdrantCollection)
 
     // Call the Mirrar Lens API
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
