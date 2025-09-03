@@ -78,13 +78,27 @@ export async function POST(req: Request) {
     externalFormData.append('limit', limit)
     externalFormData.append('score_threshold', scoreThreshold)
 
-    console.log('Calling Mirrar Lens API')
-    console.log('Searching for brand ID:', brand.id, 'brand name:', brand.name)
-    console.log('🔍 FormData being sent:')
-    console.log('  - file:', file.name, '(' + file.size + ' bytes)')
-    console.log('  - brand_id:', brand.id)
-    console.log('  - limit:', limit)
-    console.log('  - score_threshold:', scoreThreshold)
+    console.log('🚀 =================================')
+    console.log('🚀 SEARCH REQUEST DETAILS')
+    console.log('🚀 =================================')
+    console.log('📤 User Session - Brand ID:', brand.id, 'Brand Name:', brand.name)
+    console.log('📤 User Session - Collection:', brand.qdrantCollection)
+    console.log('📤 File Details:')
+    console.log('   - Name:', file.name)
+    console.log('   - Size:', file.size, 'bytes')
+    console.log('   - Type:', file.type)
+    console.log('📤 Search Parameters:')
+    console.log('   - Limit:', limit)
+    console.log('   - Score Threshold:', scoreThreshold)
+    console.log('📤 External API URL:', searchApiUrl)
+    console.log('📤 FormData being sent to external API:')
+    console.log('   - file: [BINARY DATA]', file.size, 'bytes')
+    console.log('   - brand_id:', brand.id)
+    console.log('   - limit:', limit)
+    console.log('   - score_threshold:', scoreThreshold)
+    console.log('🚀 =================================')
+    
+    console.log('Calling Mirrar Lens API...')
 
     // Call the Mirrar Lens API
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
@@ -111,12 +125,16 @@ export async function POST(req: Request) {
       return new NextResponse('Unable to connect to search service. Please try again later.', { status: 503 })
     }
 
-    console.log('External API response status:', searchResponse.status)
+    console.log('📥 =================================')
+    console.log('📥 EXTERNAL API RESPONSE')
+    console.log('📥 =================================')
+    console.log('📥 Status:', searchResponse.status, searchResponse.statusText)
+    console.log('📥 Headers:', Object.fromEntries(searchResponse.headers.entries()))
 
     if (!searchResponse.ok) {
-      console.error('External search API error:', searchResponse.status, searchResponse.statusText)
+      console.error('❌ External search API error:', searchResponse.status, searchResponse.statusText)
       const errorText = await searchResponse.text()
-      console.error('Error response body:', errorText)
+      console.error('❌ Error response body:', errorText)
       
       // Handle specific error cases
       if (searchResponse.status === 500 && errorText.includes('cannot identify image file')) {
@@ -131,7 +149,17 @@ export async function POST(req: Request) {
     }
 
     const searchResults = await searchResponse.json()
-    console.log('External API response:', searchResults)
+    console.log('📥 Success! Response JSON:')
+    console.log('📥 Results count:', searchResults.results?.length || searchResults.matches?.length || 0)
+    console.log('📥 Full response:', JSON.stringify(searchResults, null, 2))
+    console.log('📥 =================================')
+    
+    // Log the raw response structure
+    console.log('🔍 Response analysis:')
+    console.log('   - Has results field:', !!searchResults.results)
+    console.log('   - Has matches field:', !!searchResults.matches)
+    console.log('   - Results type:', typeof searchResults.results)
+    console.log('   - Matches type:', typeof searchResults.matches)
     
     // Transform the results to match our expected format
     // The API returns { matches: [...] } not { results: [...] }
@@ -159,7 +187,20 @@ export async function POST(req: Request) {
     })
 
     const tookMs = Date.now() - t0
-    console.log('Search completed in', tookMs, 'ms with', results.length, 'results')
+    
+    console.log('🎯 =================================')
+    console.log('🎯 FINAL RESULT SUMMARY')
+    console.log('🎯 =================================')
+    console.log('🎯 Search completed in', tookMs, 'ms')
+    console.log('🎯 Raw matches from external API:', matches.length)
+    console.log('🎯 Processed results for client:', results.length)
+    console.log('🎯 Sample result (first item):')
+    if (results.length > 0) {
+      console.log('   ', JSON.stringify(results[0], null, 2))
+    } else {
+      console.log('   [NO RESULTS]')
+    }
+    console.log('🎯 =================================')
     
     // Log the search for analytics
     db.searchLog.create({ 
