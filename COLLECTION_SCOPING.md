@@ -7,7 +7,7 @@ This document explains how the search API ensures proper collection scoping to m
 The search API automatically scopes all searches to the user's assigned brand collection, ensuring that:
 - Users can only search within their own brand's data
 - No cross-brand data leakage occurs
-- Each brand's data remains isolated in separate Qdrant collections
+- Each brand's data remains isolated in separate vector collections
 
 ## How It Works
 
@@ -44,7 +44,7 @@ externalFormData.append('brand_slug', brand.slug)
 
 ## Brand Collection Structure
 
-Each brand has its own Qdrant collection named `brand_{slug}`:
+Each brand has its own vector collection named `brand_{slug}`:
 
 | Brand | Collection Name | Users |
 |-------|----------------|-------|
@@ -60,7 +60,7 @@ When making a search request, the API automatically includes:
 - `score_threshold`: Minimum confidence score
 
 ### Automatically Added Parameters
-- `collection`: Brand's Qdrant collection name
+- `collection`: Brand's vector collection name
 - `brand_id`: Brand's unique identifier
 - `brand_slug`: Brand's slug for identification
 
@@ -82,7 +82,7 @@ if (!brandId) {
 ```
 
 ### 3. Collection Isolation
-Each brand's data is stored in separate Qdrant collections:
+Each brand's data is stored in separate vector collections:
 - `brand_achal-jewel-demo` for Achal Jewel Demo
 - `brand_other-brand` for other brands
 - No cross-collection access possible
@@ -151,7 +151,7 @@ db.searchLog.create({
    - Check user's brand assignment in database
 
 3. **No search results**
-   - Verify brand collection exists in Qdrant
+   - Verify brand collection exists in vector database
    - Check if collection has data
    - Verify external API is filtering by collection parameter
 

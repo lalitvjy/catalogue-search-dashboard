@@ -1,46 +1,46 @@
 # Email Setup for Production
 
-This application uses Brevo (formerly Sendinblue) for sending transactional emails in production.
+This application uses a transactional email service for sending emails in production.
 
 ## Setup Instructions
 
-### 1. Create a Brevo Account
+### 1. Create an Email Service Account
 
-1. Go to [Brevo](https://www.brevo.com/) and create an account
+1. Go to your chosen email service provider and create an account
 2. Verify your email address
 3. Complete the account setup
 
 ### 2. Get Your API Key
 
-1. Log in to your Brevo dashboard
+1. Log in to your email service dashboard
 2. Go to **Settings** → **API Keys**
 3. Create a new API key with **SMTP** permissions
-4. Copy the API key (it starts with `xkeysib-`)
+4. Copy the API key
 
 ### 3. Configure Environment Variables
 
 Add these environment variables to your production environment:
 
 ```bash
-# Brevo Email Service
-BREVO_API_KEY="xkeysib-your-api-key-here"
-BREVO_FROM_EMAIL="noreply@yourdomain.com"
+# Email Service Configuration
+EMAIL_API_KEY="your-email-service-api-key"
+EMAIL_FROM_ADDRESS="noreply@yourdomain.com"
 ```
 
 ### 4. Verify Your Sender Domain
 
-1. In your Brevo dashboard, go to **Settings** → **Senders & IP**
+1. In your email service dashboard, go to sender verification settings
 2. Add and verify your sender domain
 3. This ensures better deliverability and prevents emails from going to spam
 
 ### 5. Test Email Sending
 
-The application will automatically use Brevo in production when `NODE_ENV=production` and `BREVO_API_KEY` is set.
+The application will automatically use the email service in production when `NODE_ENV=production` and `EMAIL_API_KEY` is set.
 
 ## Development vs Production
 
 - **Development**: Emails are logged to the console for easy debugging
-- **Production**: Emails are sent via Brevo's transactional email service
+- **Production**: Emails are sent via the configured transactional email service
 
 ## Email Templates
 
@@ -54,11 +54,11 @@ The application includes pre-built email templates for:
 
 ### Common Issues
 
-1. **API Key Not Found**: Ensure `BREVO_API_KEY` is set in your environment
-2. **Sender Not Verified**: Verify your sender domain in Brevo dashboard
+1. **API Key Not Found**: Ensure `EMAIL_API_KEY` is set in your environment
+2. **Sender Not Verified**: Verify your sender domain in your email service dashboard
 3. **Emails Going to Spam**: Check your domain's SPF and DKIM records
 
-### Brevo Dashboard Features
+### Email Service Dashboard Features
 
 - **Email Analytics**: Track delivery rates, opens, and clicks
 - **Template Management**: Create and manage email templates
@@ -69,10 +69,10 @@ The application includes pre-built email templates for:
 
 If you prefer to use a different email service, you can modify the `sendEmail` function in `src/lib/email.ts`:
 
-- **SendGrid**: Use `@sendgrid/mail`
-- **AWS SES**: Use `@aws-sdk/client-ses`
-- **Resend**: Use `resend`
-- **Mailgun**: Use `mailgun.js`
+- **Provider A**: Use appropriate SDK
+- **Provider B**: Use appropriate SDK
+- **Provider C**: Use appropriate SDK
+- **Provider D**: Use appropriate SDK
 
 ## Security Notes
 
