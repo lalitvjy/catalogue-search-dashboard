@@ -84,23 +84,29 @@ export default function SearchPage() {
 
 
   const handleImageUpload = (url: string) => {
+    console.log('📤 Image Upload - URL:', url, 'Current results count:', results.length)
     setImageUrl(url)
     setUploadedImage(url || null)
     // If URL is empty (image removed), clear results
     if (!url) {
+      console.log('🔄 Image Upload - Clearing results because URL is empty')
       setResults([])
     }
   }
 
   const handleSearchResults = (searchResults: any[]) => {
+    console.log('🔍 Search Results - Setting:', searchResults.length, 'items')
     setResults(searchResults)
   }
 
   const handleFindSimilar = async (imageUrl: string) => {
     try {
       setSearching(true)
-      setUploadedImage(imageUrl)
       setError(null)
+      
+      // Update the Image Input section to show the selected image
+      handleImageUpload(imageUrl)
+      setUploadedImage(imageUrl)
 
       // Convert image URL to blob and create FormData
       const response = await fetch(imageUrl)
@@ -153,7 +159,11 @@ export default function SearchPage() {
       const searchResults = await searchResponse.json()
       const results = searchResults.results || []
       
+      console.log('🔄 Find Similar - Setting results:', results.length, 'items')
       setResults(results)
+      
+      // Also notify through the search results handler
+      handleSearchResults(results)
     } catch (error) {
       console.error('Find similar error:', error)
       setError(error instanceof Error ? error.message : 'Failed to search for similar images')
