@@ -207,6 +207,7 @@ export async function POST(req: Request) {
       console.log('   - confidence:', item.confidence)
       console.log('   - image_url:', item.image_url)
       console.log('   - public_url:', item.public_url)
+      console.log('   - attributes:', JSON.stringify(item.attributes, null, 2))
       console.log('   - Has real data:', hasRealSkuId && hasRealConfidence)
       
       // Use the real data from API response directly
@@ -220,8 +221,10 @@ export async function POST(req: Request) {
         image_url: imageUrl,
         confidence: item.confidence || 0,
         attributes: {
-          category: (item.category as string) || '',
-          tags: (item.tags as string) || '',
+          // Include both top-level and nested attributes
+          category: (item.category as string) || (item.attributes as any)?.category || '',
+          tags: (item.tags as string) || (item.attributes as any)?.tags || '',
+          // Include all attributes from the nested attributes object
           ...(item.attributes as Record<string, unknown>) || {}
         }
       }
