@@ -161,8 +161,8 @@ export async function POST(req: Request) {
       
       
       // Use the real data from API response directly
-      // Check for image URL in different possible fields - prioritize public_url first
-      const imageUrl = item.public_url || item.url || ''
+      // Check for image URL in different possible fields - prioritize public_url first, then url, then image_url
+      const imageUrl = item.public_url || item.url || item.image_url || ''
       
       return {
         sku_id: item.sku_id || `SKU-${index + 1}`,
