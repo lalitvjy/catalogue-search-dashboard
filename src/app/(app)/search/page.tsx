@@ -124,11 +124,25 @@ export default function SearchPage() {
         formData.append('brand_id', brandId)
       }
 
-      // Call our API endpoint
-      const searchResponse = await fetch('/api/search/image', {
-        method: 'POST',
-        body: formData
-      })
+      // Call our API endpoint with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      
+      let searchResponse: Response
+      try {
+        searchResponse = await fetch('/api/search/image', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId)
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          throw new Error('Search request timed out. Please try again.')
+        }
+        throw fetchError
+      }
 
       if (!searchResponse.ok) {
         const errorText = await searchResponse.text()

@@ -86,11 +86,25 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       setUploadProgress(50) // FormData prepared
 
-      // Call our API endpoint which will handle the external API call
-      const searchResponse = await fetch('/api/search/image', {
-        method: 'POST',
-        body: formData
-      })
+      // Call our API endpoint which will handle the external API call with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      
+      let searchResponse: Response
+      try {
+        searchResponse = await fetch('/api/search/image', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId)
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          throw new Error('Search request timed out. Please try again with a smaller image.')
+        }
+        throw fetchError
+      }
 
       setUploadProgress(80) // API call completed
 
