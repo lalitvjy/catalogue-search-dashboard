@@ -29,6 +29,7 @@ export default function SearchPage() {
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [triggerSearch, setTriggerSearch] = useState(false)
+  const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
 
   // Check authentication status and brand access
   useEffect(() => {
@@ -107,11 +108,15 @@ export default function SearchPage() {
 
   const handleFindSimilar = (imageUrl: string) => {
     console.log('🔄 Find Similar - Starting with image:', imageUrl)
+    console.log('🔄 Find Similar - Current triggerSearch value:', triggerSearch)
     setError(null)
     
     // Clear any active filters that might hide the new results
     console.log('🔄 Find Similar - Clearing filters to show all results')
     setFilters({})
+    
+    // Store the original image URL for searching (not the blob URL)
+    setSearchImageUrl(imageUrl)
     
     // Update the Image Input section to show the selected image
     handleImageUpload(imageUrl)
@@ -119,7 +124,12 @@ export default function SearchPage() {
     
     // Trigger search in ImageDrop component
     console.log('📤 Find Similar - Triggering search in ImageDrop component')
-    setTriggerSearch(prev => !prev) // Toggle to trigger useEffect
+    console.log('📤 Find Similar - Before setTriggerSearch, current value:', triggerSearch)
+    setTriggerSearch(prev => {
+      const newValue = !prev
+      console.log('📤 Find Similar - Setting triggerSearch from', prev, 'to', newValue)
+      return newValue
+    })
   }
 
   const runSearch = async () => {
@@ -180,6 +190,7 @@ export default function SearchPage() {
               onSearching={setSearching}
               uploadedImage={uploadedImage}
               triggerSearch={triggerSearch}
+              searchImageUrl={searchImageUrl}
             />
           </div>
 
@@ -249,6 +260,7 @@ export default function SearchPage() {
                 onSearching={setSearching}
                 uploadedImage={uploadedImage}
                 triggerSearch={triggerSearch}
+                searchImageUrl={searchImageUrl}
               />
             </div>
 

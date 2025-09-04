@@ -12,9 +12,10 @@ interface ImageDropProps {
   onSearching?: (searching: boolean) => void
   uploadedImage?: string | null
   triggerSearch?: boolean  // When true, triggers search for current uploaded image
+  searchImageUrl?: string | null  // Original image URL to search (not blob URL)
 }
 
-export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch }: ImageDropProps) {
+export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl }: ImageDropProps) {
   const { data: session } = useSession()
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -23,11 +24,12 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
   // Handle triggering search for existing uploaded image
   useEffect(() => {
-    if (triggerSearch && uploadedImage) {
-      console.log('🔄 ImageDrop - triggerSearch activated for:', uploadedImage)
-      searchForImageUrl(uploadedImage)
+    console.log('🔍 ImageDrop useEffect - triggerSearch:', triggerSearch, 'searchImageUrl:', searchImageUrl, 'uploadedImage:', uploadedImage)
+    if (triggerSearch && searchImageUrl) {
+      console.log('🔄 ImageDrop - triggerSearch activated for:', searchImageUrl)
+      searchForImageUrl(searchImageUrl)
     }
-  }, [triggerSearch, uploadedImage])
+  }, [triggerSearch, searchImageUrl])
 
   const searchForImageUrl = async (imageUrl: string) => {
     try {
@@ -38,18 +40,25 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       console.log('🔄 ImageDrop - Starting search for existing image:', imageUrl)
 
-      // Convert image URL to blob and create FormData (same as Find Similar logic)
+      // For existing hosted images, we'll fetch them to convert to a file for the API
+      console.log('🔄 ImageDrop - Fetching image from:', imageUrl)
+      
       const response = await fetch(imageUrl)
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch image')
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
       }
       
       const blob = await response.blob()
+      console.log('🔄 ImageDrop - Image fetched, blob size:', blob.size, 'type:', blob.type)
+      
       const formData = new FormData()
       
       // Create a file-like object from the blob
-      const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
-      formData.append('file', file, file.name || 'image.jpg')
+      const filename = imageUrl.split('/').pop()?.split('?')[0] || 'search-image.jpg'
+      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' })
+      
+      formData.append('file', file)
       formData.append('limit', '20')
       formData.append('score_threshold', '0.1')
       
@@ -60,7 +69,13 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
         formData.append('brand_id', brandId)
       }
 
+      // Add the additional parameters to match the curl example
+      formData.append('category', '')
+      formData.append('tags', '')
+
       setUploadProgress(50)
+
+      console.log('🔄 ImageDrop - Calling search API with file:', filename, 'brand_id:', brandId)
 
       // Call our API endpoint which will handle the external API call with timeout
       const controller = new AbortController()
