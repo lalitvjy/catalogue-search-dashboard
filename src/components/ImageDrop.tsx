@@ -25,9 +25,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
   // Handle triggering search for existing uploaded image
   useEffect(() => {
-    console.log('🔍 ImageDrop useEffect - triggerSearch:', triggerSearch, 'searchImageUrl:', searchImageUrl, 'uploadedImage:', uploadedImage)
     if (triggerSearch && searchImageUrl) {
-      console.log('🔄 ImageDrop - triggerSearch activated for:', searchImageUrl)
       searchForImageUrl(searchImageUrl)
     }
   }, [triggerSearch, searchImageUrl])
@@ -39,10 +37,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setUploadProgress(10)
       setError(null)
 
-      console.log('🔄 ImageDrop - Starting search for existing image:', imageUrl)
-
-      // For existing hosted images, we'll fetch them to convert to a file for the API
-      console.log('🔄 ImageDrop - Fetching image from:', imageUrl)
       
       const response = await fetch(imageUrl)
       
@@ -51,7 +45,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       }
       
       const blob = await response.blob()
-      console.log('🔄 ImageDrop - Image fetched, blob size:', blob.size, 'type:', blob.type)
       
       const formData = new FormData()
       
@@ -76,7 +69,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       setUploadProgress(50)
 
-      console.log('🔄 ImageDrop - Calling search API with file:', filename, 'brand_id:', brandId)
 
       // Call our API endpoint which will handle the external API call with timeout
       const controller = new AbortController()
@@ -123,7 +115,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       onSearchResults?.(results)
       setUploadProgress(100)
       
-      console.log('✅ ImageDrop - Search completed for existing image, results:', results.length)
       
     } catch (error) {
       console.error('ImageDrop search failed:', error)

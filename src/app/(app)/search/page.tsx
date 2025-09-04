@@ -83,36 +83,26 @@ export default function SearchPage() {
     return true
   })
   
-  // Debug logging for filtered results
-  if (results.length !== filteredResults.length) {
-    console.log('🔍 Filter Debug - Raw results:', results.length, 'Filtered results:', filteredResults.length, 'Active filters:', filters)
-  }
 
 
 
   const handleImageUpload = (url: string) => {
-    console.log('📤 Image Upload - URL:', url, 'Current results count:', results.length)
     setImageUrl(url)
     setUploadedImage(url || null)
     // If URL is empty (image removed), clear results
     if (!url) {
-      console.log('🔄 Image Upload - Clearing results because URL is empty')
       setResults([])
     }
   }
 
   const handleSearchResults = (searchResults: any[]) => {
-    console.log('🔍 Search Results - Setting:', searchResults.length, 'items')
     setResults(searchResults)
   }
 
   const handleFindSimilar = (imageUrl: string) => {
-    console.log('🔄 Find Similar - Starting with image:', imageUrl)
-    console.log('🔄 Find Similar - Current triggerSearch value:', triggerSearch)
     setError(null)
     
     // Clear any active filters that might hide the new results
-    console.log('🔄 Find Similar - Clearing filters to show all results')
     setFilters({})
     
     // Store the original image URL for searching (not the blob URL)
@@ -123,19 +113,12 @@ export default function SearchPage() {
     setUploadedImage(imageUrl)
     
     // Trigger search in ImageDrop component
-    console.log('📤 Find Similar - Triggering search in ImageDrop component')
-    console.log('📤 Find Similar - Before setTriggerSearch, current value:', triggerSearch)
-    setTriggerSearch(prev => {
-      const newValue = !prev
-      console.log('📤 Find Similar - Setting triggerSearch from', prev, 'to', newValue)
-      return newValue
-    })
+    setTriggerSearch(prev => !prev)
   }
 
   const runSearch = async () => {
     // File uploads are handled directly in ImageDrop component
     // This function is kept for potential future URL-based searches
-    console.log('URL-based search not implemented - use file upload instead')
   }
 
   return (

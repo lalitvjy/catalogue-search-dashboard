@@ -95,27 +95,6 @@ export async function POST(req: Request) {
     // Get API URL first
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
 
-    console.log('🚀 =================================')
-    console.log('🚀 SEARCH REQUEST DETAILS')
-    console.log('🚀 =================================')
-    console.log('📤 User Session - Brand ID:', brand.id, 'Brand Name:', brand.name)
-    console.log('📤 User Session - Collection:', brand.qdrantCollection)
-    console.log('📤 File Details:')
-    console.log('   - Name:', file.name)
-    console.log('   - Size:', file.size, 'bytes')
-    console.log('   - Type:', file.type)
-    console.log('📤 Search Parameters:')
-    console.log('   - Limit:', limit)
-    console.log('   - Score Threshold:', scoreThreshold)
-    console.log('📤 External API URL:', searchApiUrl)
-    console.log('📤 FormData being sent to external API:')
-    console.log('   - file: [BINARY DATA]', file.size, 'bytes')
-    console.log('   - brand_id:', brand.id)
-    console.log('   - limit:', limit)
-    console.log('   - score_threshold:', scoreThreshold)
-    console.log('   - category: (empty)')
-    console.log('   - tags: (empty)')
-    console.log('🚀 =================================')
     
     console.log('Calling Mirrar Lens API...')
     
@@ -141,11 +120,6 @@ export async function POST(req: Request) {
       return new NextResponse('Unable to connect to search service. Please try again later.', { status: 503 })
     }
 
-    console.log('📥 =================================')
-    console.log('📥 EXTERNAL API RESPONSE')
-    console.log('📥 =================================')
-    console.log('📥 Status:', searchResponse.status, searchResponse.statusText)
-    console.log('📥 Headers:', Object.fromEntries(searchResponse.headers.entries()))
 
     if (!searchResponse.ok) {
       console.error('❌ External search API error:', searchResponse.status, searchResponse.statusText)
@@ -165,32 +139,16 @@ export async function POST(req: Request) {
     }
 
     const searchResults = await searchResponse.json()
-    console.log('📥 Success! Response JSON:')
-    console.log('📥 Results count:', searchResults.results?.length || searchResults.matches?.length || 0)
-    console.log('📥 Full response:', JSON.stringify(searchResults, null, 2))
-    console.log('📥 =================================')
-    
-    // Log the raw response structure
-    console.log('🔍 Response analysis:')
-    console.log('   - Has results field:', !!searchResults.results)
-    console.log('   - Has matches field:', !!searchResults.matches)
-    console.log('   - Results type:', typeof searchResults.results)
-    console.log('   - Matches type:', typeof searchResults.matches)
     
     // Transform the results to match our expected format
     // The API returns { results: [...] } directly
     const matches = searchResults.results || searchResults.matches || []
     
-    console.log('🔍 TRANSFORMATION ANALYSIS:')
-    console.log('   - Raw matches array length:', matches.length)
-    console.log('   - First match sample:', matches[0] ? JSON.stringify(matches[0], null, 2) : 'NO MATCHES')
-    
     // If no real matches, return empty results instead of dummy data
     if (!matches || matches.length === 0) {
-      console.log('⚠️  No matches returned from external API - returning empty results')
       const tookMs = Date.now() - t0
-      return NextResponse.json({ 
-        results: [], 
+      return NextResponse.json({
+        results: [],
         took_ms: tookMs,
         total_results: 0
       })
@@ -201,14 +159,6 @@ export async function POST(req: Request) {
       const hasRealSkuId = item.sku_id && typeof item.sku_id === 'string' && item.sku_id !== ''
       const hasRealConfidence = typeof item.confidence === 'number' && item.confidence > 0
       
-      console.log(`🔍 Item ${index + 1} analysis:`)
-      console.log('   - sku_id:', item.sku_id)
-      console.log('   - sku_code:', item.sku_code) 
-      console.log('   - confidence:', item.confidence)
-      console.log('   - image_url:', item.image_url)
-      console.log('   - public_url:', item.public_url)
-      console.log('   - attributes:', JSON.stringify(item.attributes, null, 2))
-      console.log('   - Has real data:', hasRealSkuId && hasRealConfidence)
       
       // Use the real data from API response directly
       // Check for image URL in different possible fields
@@ -232,19 +182,6 @@ export async function POST(req: Request) {
 
     const tookMs = Date.now() - t0
     
-    console.log('🎯 =================================')
-    console.log('🎯 FINAL RESULT SUMMARY')
-    console.log('🎯 =================================')
-    console.log('🎯 Search completed in', tookMs, 'ms')
-    console.log('🎯 Raw matches from external API:', matches.length)
-    console.log('🎯 Processed results for client:', results.length)
-    console.log('🎯 Sample result (first item):')
-    if (results.length > 0) {
-      console.log('   ', JSON.stringify(results[0], null, 2))
-    } else {
-      console.log('   [NO RESULTS]')
-    }
-    console.log('🎯 =================================')
     
     // Log the search for analytics
     db.searchLog.create({ 
