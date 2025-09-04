@@ -111,15 +111,31 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
         <div key={`${result.sku_id}-${index}`} className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200">
           {/* Image Container with Confidence Indicator */}
           <div className="relative aspect-square bg-white p-3">
-            <img
-              src={result.image_url}
-              alt={result.sku_code}
-              className="w-full h-full object-contain rounded-lg"
-              style={{ aspectRatio: '1 / 1' }}
-              onError={(e) => {
-                e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjlGQUZCIi8+CjxwYXRoIGQ9Ik04MCAxMDBDODAgODkuNTQ0IDg4LjU0NCA4MSA5OSA4MUgxMDFDMTExLjQ1NiA4MSAxMjAgODkuNTQ0IDEyMCAxMDBWMTEwQzEyMCAxMjAuNDU2IDExMS40NTYgMTI5IDEwMSAxMjlIOU5DOSA4OS41NDQgODEgODAuNTQ0IDgxIDcwVjEwMFoiIGZpbGw9IiNEMUQ1REIiLz4KPC9zdmc+'
+            {result.image_url ? (
+              <img
+                src={result.image_url}
+                alt={result.sku_code}
+                className="w-full h-full object-contain rounded-lg"
+                style={{ aspectRatio: '1 / 1' }}
+                onError={(e) => {
+                  const target = e.currentTarget
+                  target.style.display = 'none'
+                  const errorDiv = target.nextElementSibling as HTMLElement
+                  if (errorDiv) {
+                    errorDiv.style.display = 'flex'
+                  }
+                }}
+              />
+            ) : null}
+            <div 
+              className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-sm"
+              style={{ 
+                aspectRatio: '1 / 1',
+                display: result.image_url ? 'none' : 'flex'
               }}
-            />
+            >
+              Error Image loading
+            </div>
           </div>
           
           {/* Content Section */}
