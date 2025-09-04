@@ -13,9 +13,10 @@ interface ImageDropProps {
   uploadedImage?: string | null
   triggerSearch?: boolean  // When true, triggers search for current uploaded image
   searchImageUrl?: string | null  // Original image URL to search (not blob URL)
+  scoreThreshold?: number  // Score threshold for search
 }
 
-export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl }: ImageDropProps) {
+export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, scoreThreshold }: ImageDropProps) {
   const { data: session } = useSession()
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -60,7 +61,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       
       formData.append('file', file)
       formData.append('limit', '20')
-      formData.append('score_threshold', '0.1')
+      formData.append('score_threshold', (scoreThreshold || 0.1).toString())
       
       // Add brand ID from session if available
       const extendedSession = session as unknown as ExtendedSession
@@ -192,7 +193,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')
       formData.append('limit', '20')
-      formData.append('score_threshold', '0.1')
+      formData.append('score_threshold', (scoreThreshold || 0.1).toString())
       
       // Add brand ID from session if available
       const extendedSession = session as unknown as ExtendedSession

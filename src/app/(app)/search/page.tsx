@@ -191,6 +191,7 @@ export default function SearchPage() {
               uploadedImage={uploadedImage}
               triggerSearch={triggerSearch}
               searchImageUrl={searchImageUrl}
+              scoreThreshold={filters.confidence_min || 0.1}
             />
           </div>
 
@@ -261,6 +262,7 @@ export default function SearchPage() {
                 uploadedImage={uploadedImage}
                 triggerSearch={triggerSearch}
                 searchImageUrl={searchImageUrl}
+                scoreThreshold={filters.confidence_min || 0.1}
               />
             </div>
 
