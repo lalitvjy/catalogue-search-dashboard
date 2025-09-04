@@ -199,14 +199,40 @@ export async function POST(req: Request) {
       } 
     }).catch(() => {})
 
-    return NextResponse.json({ 
+    const response = NextResponse.json({ 
       results, 
       took_ms: tookMs,
       total_results: results.length
     })
 
+    // Add CORS headers
+    response.headers.set('Access-Control-Allow-Origin', '*')
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    
+    return response
+
   } catch (error) {
     console.error('Search error:', error)
-    return new NextResponse('Search failed', { status: 500 })
+    const errorResponse = new NextResponse('Search failed', { status: 500 })
+    
+    // Add CORS headers to error response
+    errorResponse.headers.set('Access-Control-Allow-Origin', '*')
+    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    
+    return errorResponse
   }
+}
+
+// Handle CORS preflight requests
+export async function OPTIONS(req: Request) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    },
+  })
 }

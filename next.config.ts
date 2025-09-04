@@ -9,11 +9,21 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
   images: {
-    domains: ['localhost'],
+    domains: [
+      'localhost',
+      'search.mirrar.io',
+      'static.mirrar.io',
+      'storage.googleapis.com'
+    ],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3000',
       },
     ],
   },
