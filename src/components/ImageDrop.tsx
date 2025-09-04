@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 
 interface ExtendedSession {
@@ -11,14 +11,116 @@ interface ImageDropProps {
   onSearchResults?: (results: unknown[]) => void
   onSearching?: (searching: boolean) => void
   uploadedImage?: string | null
+  triggerSearch?: boolean  // When true, triggers search for current uploaded image
 }
 
-export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage }: ImageDropProps) {
+export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch }: ImageDropProps) {
   const { data: session } = useSession()
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState(0)
+
+  // Handle triggering search for existing uploaded image
+  useEffect(() => {
+    if (triggerSearch && uploadedImage) {
+      console.log('🔄 ImageDrop - triggerSearch activated for:', uploadedImage)
+      searchForImageUrl(uploadedImage)
+    }
+  }, [triggerSearch, uploadedImage])
+
+  const searchForImageUrl = async (imageUrl: string) => {
+    try {
+      setUploading(true)
+      onSearching?.(true)
+      setUploadProgress(10)
+      setError(null)
+
+      console.log('🔄 ImageDrop - Starting search for existing image:', imageUrl)
+
+      // Convert image URL to blob and create FormData (same as Find Similar logic)
+      const response = await fetch(imageUrl)
+      if (!response.ok) {
+        throw new Error('Failed to fetch image')
+      }
+      
+      const blob = await response.blob()
+      const formData = new FormData()
+      
+      // Create a file-like object from the blob
+      const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
+      formData.append('file', file, file.name || 'image.jpg')
+      formData.append('limit', '20')
+      formData.append('score_threshold', '0.1')
+      
+      // Add brand ID from session if available
+      const extendedSession = session as unknown as ExtendedSession
+      const brandId = extendedSession?.brandId
+      if (brandId) {
+        formData.append('brand_id', brandId)
+      }
+
+      setUploadProgress(50)
+
+      // Call our API endpoint which will handle the external API call with timeout
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+      
+      let searchResponse: Response
+      try {
+        searchResponse = await fetch('/api/search/image', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal
+        })
+        clearTimeout(timeoutId)
+      } catch (fetchError) {
+        clearTimeout(timeoutId)
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          throw new Error('Search request timed out. Please try again with a smaller image.')
+        }
+        throw fetchError
+      }
+
+      setUploadProgress(80)
+
+      if (!searchResponse.ok) {
+        const errorText = await searchResponse.text()
+        console.error('Search API error:', searchResponse.status, errorText)
+        
+        let errorMessage = 'Failed to search for similar images'
+        if (searchResponse.status === 400) {
+          errorMessage = 'Invalid image format or corrupted file'
+        } else if (searchResponse.status === 413) {
+          errorMessage = 'Image file is too large'
+        } else if (searchResponse.status >= 500) {
+          errorMessage = 'Search service is temporarily unavailable'
+        }
+        
+        throw new Error(errorMessage)
+      }
+
+      const searchResults = await searchResponse.json()
+      setUploadProgress(90)
+      
+      const results = searchResults.results || []
+      onSearchResults?.(results)
+      setUploadProgress(100)
+      
+      console.log('✅ ImageDrop - Search completed for existing image, results:', results.length)
+      
+    } catch (error) {
+      console.error('ImageDrop search failed:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to search image. Please try again.'
+      setError(errorMessage)
+      onSearchResults?.([])
+      
+    } finally {
+      setUploading(false)
+      setUploadProgress(0)
+      onSearching?.(false)
+    }
+  }
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()

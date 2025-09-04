@@ -28,6 +28,7 @@ export default function SearchPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [triggerSearch, setTriggerSearch] = useState(false)
 
   // Check authentication status and brand access
   useEffect(() => {
@@ -80,6 +81,11 @@ export default function SearchPage() {
     }
     return true
   })
+  
+  // Debug logging for filtered results
+  if (results.length !== filteredResults.length) {
+    console.log('🔍 Filter Debug - Raw results:', results.length, 'Filtered results:', filteredResults.length, 'Active filters:', filters)
+  }
 
 
 
@@ -99,77 +105,21 @@ export default function SearchPage() {
     setResults(searchResults)
   }
 
-  const handleFindSimilar = async (imageUrl: string) => {
-    try {
-      setSearching(true)
-      setError(null)
-      
-      // Update the Image Input section to show the selected image
-      handleImageUpload(imageUrl)
-      setUploadedImage(imageUrl)
-
-      // Convert image URL to blob and create FormData
-      const response = await fetch(imageUrl)
-      if (!response.ok) {
-        throw new Error('Failed to fetch image')
-      }
-      
-      const blob = await response.blob()
-      const formData = new FormData()
-      
-      // Create a file-like object from the blob
-      const file = new File([blob], 'similar-search.jpg', { type: blob.type || 'image/jpeg' })
-      formData.append('file', file)
-      formData.append('limit', '20')
-      formData.append('score_threshold', '0.1')
-      
-      // Add brand ID from session if available
-      const extendedSession = session as unknown as ExtendedSession
-      const brandId = extendedSession.brandId
-      if (brandId) {
-        formData.append('brand_id', brandId)
-      }
-
-      // Call our API endpoint with timeout
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
-      
-      let searchResponse: Response
-      try {
-        searchResponse = await fetch('/api/search/image', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal
-        })
-        clearTimeout(timeoutId)
-      } catch (fetchError) {
-        clearTimeout(timeoutId)
-        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          throw new Error('Search request timed out. Please try again.')
-        }
-        throw fetchError
-      }
-
-      if (!searchResponse.ok) {
-        const errorText = await searchResponse.text()
-        console.error('Search API error:', searchResponse.status, errorText)
-        throw new Error('Failed to search for similar images')
-      }
-
-      const searchResults = await searchResponse.json()
-      const results = searchResults.results || []
-      
-      console.log('🔄 Find Similar - Setting results:', results.length, 'items')
-      setResults(results)
-      
-      // Also notify through the search results handler
-      handleSearchResults(results)
-    } catch (error) {
-      console.error('Find similar error:', error)
-      setError(error instanceof Error ? error.message : 'Failed to search for similar images')
-    } finally {
-      setSearching(false)
-    }
+  const handleFindSimilar = (imageUrl: string) => {
+    console.log('🔄 Find Similar - Starting with image:', imageUrl)
+    setError(null)
+    
+    // Clear any active filters that might hide the new results
+    console.log('🔄 Find Similar - Clearing filters to show all results')
+    setFilters({})
+    
+    // Update the Image Input section to show the selected image
+    handleImageUpload(imageUrl)
+    setUploadedImage(imageUrl)
+    
+    // Trigger search in ImageDrop component
+    console.log('📤 Find Similar - Triggering search in ImageDrop component')
+    setTriggerSearch(prev => !prev) // Toggle to trigger useEffect
   }
 
   const runSearch = async () => {
@@ -229,6 +179,7 @@ export default function SearchPage() {
               onSearchResults={handleSearchResults}
               onSearching={setSearching}
               uploadedImage={uploadedImage}
+              triggerSearch={triggerSearch}
             />
           </div>
 
@@ -297,6 +248,7 @@ export default function SearchPage() {
                 onSearchResults={handleSearchResults}
                 onSearching={setSearching}
                 uploadedImage={uploadedImage}
+                triggerSearch={triggerSearch}
               />
             </div>
 
