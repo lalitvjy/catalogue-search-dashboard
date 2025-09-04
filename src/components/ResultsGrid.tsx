@@ -120,16 +120,6 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
                 e.currentTarget.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjlGQUZCIi8+CjxwYXRoIGQ9Ik04MCAxMDBDODAgODkuNTQ0IDg4LjU0NCA4MSA5OSA4MUgxMDFDMTExLjQ1NiA4MSAxMjAgODkuNTQ0IDEyMCAxMDBWMTEwQzEyMCAxMjAuNDU2IDExMS40NTYgMTI5IDEwMSAxMjlIOU5DOSA4OS41NDQgODEgODAuNTQ0IDgxIDcwVjEwMFoiIGZpbGw9IiNEMUQ1REIiLz4KPC9zdmc+'
               }}
             />
-            {/* Enhanced Confidence Indicator */}
-            <div className="absolute top-2 right-2">
-              <div className={`w-4 h-4 rounded-full border-2 border-white shadow-sm ${
-                result.confidence >= 0.8 ? 'bg-green-500' :
-                result.confidence >= 0.6 ? 'bg-yellow-500' :
-                result.confidence >= 0.4 ? 'bg-orange-500' :
-                'bg-red-500'
-              }`} title={`${(result.confidence * 100).toFixed(1)}% confidence`}>
-              </div>
-            </div>
           </div>
           
           {/* Content Section */}
