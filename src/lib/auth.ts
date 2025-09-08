@@ -56,11 +56,24 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user, account, profile }) {
+      console.log('🔐 SignIn callback triggered:', { 
+        provider: account?.provider, 
+        email: user.email,
+        hasProfile: !!profile,
+        profileData: profile 
+      })
+      
+      try {
+      
       if (account?.provider === 'google' || account?.provider === 'azure-ad') {
-        if (!user.email) return false
+        if (!user.email) {
+          console.error('❌ No email provided')
+          return false
+        }
         
         // For Azure AD, optionally validate company domain
         if (account?.provider === 'azure-ad') {
+          console.log('🔍 Azure AD login detected for:', user.email)
           // Add domain validation if needed
           // const allowedDomains = process.env.ALLOWED_MICROSOFT_DOMAINS?.split(',') || []
           // if (allowedDomains.length > 0) {
@@ -77,6 +90,8 @@ export const authOptions: NextAuthOptions = {
           where: { email: user.email } 
         })
         
+        console.log('👤 Existing user found:', !!existingUser)
+        
         // If user doesn't exist, create them (without brand assignment)
         if (!existingUser) {
           try {
@@ -85,6 +100,7 @@ export const authOptions: NextAuthOptions = {
               name: user.name || null,
               // brandId will be null initially - requires admin assignment
               brandId: null,
+              role: 'VIEWER' as const, // Explicitly set the role with proper typing
             }
             
             // Store provider-specific sub ID
@@ -94,10 +110,16 @@ export const authOptions: NextAuthOptions = {
               userData.microsoftSub = profile?.sub
             }
             
+            console.log('🚀 Creating new user with data:', userData)
             existingUser = await db.user.create({ data: userData })
-            console.log('Created new user:', existingUser.email, 'via', account?.provider)
+            console.log('✅ Created new user:', existingUser.email, 'via', account?.provider)
           } catch (error) {
-            console.error('Error creating user:', error)
+            console.error('❌ Error creating user:', error)
+            console.error('Error details:', {
+              message: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+              userData: userData
+            })
             return false
           }
         }
@@ -105,6 +127,11 @@ export const authOptions: NextAuthOptions = {
         return true
       }
       return true
+      
+      } catch (error) {
+        console.error('💥 Unexpected error in signIn callback:', error)
+        return false
+      }
     },
     async jwt({ token, user }) {
       if (user) {
