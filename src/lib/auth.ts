@@ -94,22 +94,22 @@ export const authOptions: NextAuthOptions = {
         
         // If user doesn't exist, create them (without brand assignment)
         if (!existingUser) {
+          const userData: any = {
+            email: user.email,
+            name: user.name || null,
+            // brandId will be null initially - requires admin assignment
+            brandId: null,
+            role: 'VIEWER' as const, // Explicitly set the role with proper typing
+          }
+          
+          // Store provider-specific sub ID
+          if (account?.provider === 'google') {
+            userData.googleSub = profile?.sub
+          } else if (account?.provider === 'azure-ad') {
+            userData.microsoftSub = profile?.sub
+          }
+          
           try {
-            const userData: any = {
-              email: user.email,
-              name: user.name || null,
-              // brandId will be null initially - requires admin assignment
-              brandId: null,
-              role: 'VIEWER' as const, // Explicitly set the role with proper typing
-            }
-            
-            // Store provider-specific sub ID
-            if (account?.provider === 'google') {
-              userData.googleSub = profile?.sub
-            } else if (account?.provider === 'azure-ad') {
-              userData.microsoftSub = profile?.sub
-            }
-            
             console.log('🚀 Creating new user with data:', userData)
             existingUser = await db.user.create({ data: userData })
             console.log('✅ Created new user:', existingUser.email, 'via', account?.provider)
