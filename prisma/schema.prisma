@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -15,57 +9,69 @@ datasource db {
 }
 
 model Brand {
-  id               String @id @default(cuid())
+  id               String  @id @default(cuid())
   name             String
-  slug             String @unique
+  slug             String  @unique
   qdrantCollection String
-  users            User[]
+  embedding_model  String? @default("dinov2")
   skus             Sku[]
+  users            User[]
 }
 
 model User {
-  id           String @id @default(cuid())
-  email        String @unique
-  passwordHash String?
-  googleSub    String?
-  brandId      String?
-  brand        Brand?  @relation(fields: [brandId], references: [id])
-  role         String @default("user")
-  name         String?
-  createdAt    DateTime @default(now())
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String?
+  googleSub           String?
+  microsoftSub        String?
+  brandId             String?
+  role                UserRole             @default(VIEWER)
+  createdAt           DateTime             @default(now())
+  name                String?
   passwordResetTokens PasswordResetToken[]
+  brand               Brand?               @relation(fields: [brandId], references: [id])
+}
+
+enum UserRole {
+  SUPER_ADMIN  // Can manage all brands, users, and system settings
+  BRAND_ADMIN  // Can manage users within their brand
+  BRAND_USER   // Can use search features within their brand
+  VIEWER       // Can only view, no modifications
 }
 
 model PasswordResetToken {
   id        String   @id @default(cuid())
   token     String   @unique
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([userId])
 }
 
 model Sku {
-  id       String @id @default(cuid())
-  brandId  String
-  brand    Brand  @relation(fields: [brandId], references: [id])
-  skuCode  String
-  fileName String
-  imageUrl String
-  title    String?
-  attr     SkuAttr?
+  id            String    @id @default(cuid())
+  brandId       String
+  skuCode       String
+  fileName      String
+  imageUrl      String
+  title         String?
+  qdrantPointId String?   @db.Uuid
+  metadata      Json?
+  processedAt   DateTime? @db.Timestamp(6)
+  brand         Brand     @relation(fields: [brandId], references: [id])
+  attr          SkuAttr?
 
-  @@index([brandId, skuCode], name: "brand_sku")
+  @@index([brandId, skuCode], map: "brand_sku")
 }
 
 model SkuAttr {
   id    String @id @default(cuid())
   skuId String @unique
-  sku   Sku    @relation(fields: [skuId], references: [id])
   attrs Json
+  sku   Sku    @relation(fields: [skuId], references: [id])
 }
 
 model SearchLog {

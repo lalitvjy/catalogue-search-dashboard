@@ -13,7 +13,8 @@ const nextConfig: NextConfig = {
       'localhost',
       'search.mirrar.io',
       'static.mirrar.io',
-      'storage.googleapis.com'
+      'storage.googleapis.com',
+      'pub-2a9cb6dd10e44d13-a19o-45g6-b7e1-2b7e8bf1c5bc.r2.dev'
     ],
     remotePatterns: [
       {
