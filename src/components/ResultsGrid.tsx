@@ -136,6 +136,15 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
             >
               Error Image loading
             </div>
+            
+            {/* Confidence Badge */}
+            <div className="absolute top-2 right-2">
+              <div className="bg-black/60 rounded-full px-2 py-1 flex items-center justify-center">
+                <span className="text-white text-xs font-medium">
+                  {Math.round(result.confidence * 100)}%
+                </span>
+              </div>
+            </div>
           </div>
           
           {/* Content Section */}

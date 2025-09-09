@@ -37,55 +37,31 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setUploadProgress(10)
       setError(null)
 
-      
-      const response = await fetch(imageUrl)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
-      }
-      
-      const blob = await response.blob()
-      
-      const formData = new FormData()
-      
-      // Create a file-like object from the blob
-      const filename = imageUrl.split('/').pop()?.split('?')[0] || 'search-image.jpg'
-      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' })
-      
-      formData.append('file', file)
-      formData.append('limit', '20')
-      formData.append('score_threshold', (scoreThreshold || 0.1).toString())
-      
-      // Add brand ID from session if available
-      const extendedSession = session as unknown as ExtendedSession
-      const brandId = extendedSession?.brandId
-      if (brandId) {
-        formData.append('brand_id', brandId)
-      }
+      setUploadProgress(30)
 
-      // Add the additional parameters to match the curl example
-      formData.append('category', '')
-      formData.append('tags', '')
-
-      setUploadProgress(50)
-
-
-      // Call our API endpoint which will handle the external API call with timeout
+      // Call our new URL-based search API endpoint
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
       
       let searchResponse: Response
       try {
-        searchResponse = await fetch('/api/search/image', {
+        searchResponse = await fetch('/api/search/image-url', {
           method: 'POST',
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            image_url: imageUrl,
+            limit: 20,
+            score_threshold: scoreThreshold || 0.1
+          }),
           signal: controller.signal
         })
         clearTimeout(timeoutId)
       } catch (fetchError) {
         clearTimeout(timeoutId)
         if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          throw new Error('Search request timed out. Please try again with a smaller image.')
+          throw new Error('Search request timed out. Please try again.')
         }
         throw fetchError
       }
@@ -98,9 +74,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
         
         let errorMessage = 'Failed to search for similar images'
         if (searchResponse.status === 400) {
-          errorMessage = 'Invalid image format or corrupted file'
-        } else if (searchResponse.status === 413) {
-          errorMessage = 'Image file is too large'
+          errorMessage = 'Invalid image URL or format'
         } else if (searchResponse.status >= 500) {
           errorMessage = 'Search service is temporarily unavailable'
         }

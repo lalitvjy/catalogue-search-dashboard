@@ -97,6 +97,8 @@ export default function SearchPage() {
 
   const handleSearchResults = (searchResults: any[]) => {
     setResults(searchResults)
+    // Scroll to top when new results are loaded
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleFindSimilar = (imageUrl: string) => {
@@ -112,8 +114,20 @@ export default function SearchPage() {
     handleImageUpload(imageUrl)
     setUploadedImage(imageUrl)
     
-    // Trigger search in ImageDrop component
-    setTriggerSearch(prev => !prev)
+    // Trigger search in ImageDrop component with a unique value
+    setTriggerSearch(Date.now())
+  }
+
+  const handleApplyConfidenceFilter = (confidence: number) => {
+    setError(null)
+    
+    // Update filters with new confidence threshold
+    setFilters(prev => ({ ...prev, confidence_min: confidence }))
+    
+    // If we have a search image URL, re-run the search with new confidence
+    if (searchImageUrl) {
+      setTriggerSearch(Date.now())
+    }
   }
 
   const runSearch = async () => {
@@ -212,6 +226,8 @@ export default function SearchPage() {
                 filters={filters}
                 onFiltersChange={setFilters}
                 results={results}
+                onApplyConfidenceFilter={handleApplyConfidenceFilter}
+                isSearching={searching}
               />
             </div>
           </div>
@@ -255,6 +271,8 @@ export default function SearchPage() {
                 filters={filters}
                 onFiltersChange={setFilters}
                 results={results}
+                onApplyConfidenceFilter={handleApplyConfidenceFilter}
+                isSearching={searching}
               />
             </div>
           </div>

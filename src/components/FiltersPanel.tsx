@@ -20,9 +20,20 @@ interface FiltersPanelProps {
   filters: Filters
   onFiltersChange: (filters: Filters) => void
   results: SearchResult[]
+  onApplyConfidenceFilter?: (confidence: number) => void
+  isSearching?: boolean
 }
 
-export default function FiltersPanel({ filters, onFiltersChange, results }: FiltersPanelProps) {
+export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false }: FiltersPanelProps) {
+  const [tempConfidence, setTempConfidence] = useState<number>(filters.confidence_min || 0)
+  const [hasConfidenceChanged, setHasConfidenceChanged] = useState(false)
+
+  // Update temp confidence when filters change externally
+  useEffect(() => {
+    setTempConfidence(filters.confidence_min || 0)
+    setHasConfidenceChanged(false)
+  }, [filters.confidence_min])
+
   // Extract unique categories and tags from search results
   const facets = useMemo(() => {
     const categories: Record<string, number> = {}
@@ -52,6 +63,22 @@ export default function FiltersPanel({ filters, onFiltersChange, results }: Filt
       newFilters[key] = value as any
     }
     onFiltersChange(newFilters)
+  }
+
+  const handleConfidenceSliderChange = (value: number) => {
+    // Round to nearest 5% (0.05)
+    const roundedValue = Math.round(value / 0.05) * 0.05
+    setTempConfidence(roundedValue)
+    setHasConfidenceChanged(roundedValue !== (filters.confidence_min || 0))
+  }
+
+  const handleApplyConfidenceFilter = () => {
+    if (onApplyConfidenceFilter) {
+      onApplyConfidenceFilter(tempConfidence)
+    } else {
+      handleFilterChange('confidence_min', tempConfidence)
+    }
+    setHasConfidenceChanged(false)
   }
 
   const clearFilters = () => {
@@ -140,21 +167,40 @@ export default function FiltersPanel({ filters, onFiltersChange, results }: Filt
       {/* Confidence Threshold */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Min Confidence: {filters.confidence_min ? (filters.confidence_min * 100).toFixed(0) + '%' : 'Any'}
+          Min Confidence: {tempConfidence > 0 ? (tempConfidence * 100).toFixed(0) + '%' : 'Any'}
         </label>
         <input
           type="range"
           min="0"
           max="1"
-          step="0.01"
-          value={filters.confidence_min || 0}
-          onChange={(e) => handleFilterChange('confidence_min', parseFloat(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          step="0.05"
+          value={tempConfidence}
+          onChange={(e) => handleConfidenceSliderChange(parseFloat(e.target.value))}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+          style={{
+            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${tempConfidence * 100}%, #e5e7eb ${tempConfidence * 100}%, #e5e7eb 100%)`
+          }}
         />
         <div className="flex justify-between text-xs text-gray-500 mt-1">
           <span>0%</span>
+          <span>25%</span>
+          <span>50%</span>
+          <span>75%</span>
           <span>100%</span>
         </div>
+        
+        {/* Apply Filter Button */}
+        {hasConfidenceChanged && onApplyConfidenceFilter && (
+          <div className="mt-3">
+            <button
+              onClick={handleApplyConfidenceFilter}
+              disabled={isSearching}
+              className="w-full bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSearching ? 'Searching...' : 'Apply Filter & Re-search'}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Active Filters Display */}
