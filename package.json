@@ -7,6 +7,8 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "tsx src/__tests__/search.test.ts",
+    "validate": "npm run build && npm run test",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy"
   },

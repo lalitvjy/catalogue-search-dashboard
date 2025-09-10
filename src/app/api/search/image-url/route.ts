@@ -117,8 +117,7 @@ export async function POST(req: Request) {
       console.error('❌ Request details:', {
         url: searchApiUrl,
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: params.toString()
+        body: 'FormData with image file'
       })
       
       // Handle specific error cases

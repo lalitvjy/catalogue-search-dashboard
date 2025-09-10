@@ -25,7 +25,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
   // Handle triggering search for existing uploaded image
   useEffect(() => {
-    if (triggerSearch > 0 && searchImageUrl) {
+    if (triggerSearch && triggerSearch > 0 && searchImageUrl) {
       searchForImageUrl(searchImageUrl)
     }
   }, [triggerSearch, searchImageUrl])
