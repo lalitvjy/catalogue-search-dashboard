@@ -11,7 +11,7 @@ interface ImageDropProps {
   onSearchResults?: (results: unknown[]) => void
   onSearching?: (searching: boolean) => void
   uploadedImage?: string | null
-  triggerSearch?: boolean  // When true, triggers search for current uploaded image
+  triggerSearch?: number  // When changed, triggers search for current uploaded image
   searchImageUrl?: string | null  // Original image URL to search (not blob URL)
   scoreThreshold?: number  // Score threshold for search
 }
@@ -25,7 +25,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
   // Handle triggering search for existing uploaded image
   useEffect(() => {
-    if (triggerSearch && searchImageUrl) {
+    if (triggerSearch > 0 && searchImageUrl) {
       searchForImageUrl(searchImageUrl)
     }
   }, [triggerSearch, searchImageUrl])

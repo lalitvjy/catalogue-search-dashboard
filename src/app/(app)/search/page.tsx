@@ -28,7 +28,7 @@ export default function SearchPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [triggerSearch, setTriggerSearch] = useState(false)
+  const [triggerSearch, setTriggerSearch] = useState(0)
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
 
   // Check authentication status and brand access
