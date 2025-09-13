@@ -1,4 +1,4 @@
-# Catalogue Similarity Search Dashboard
+# mirrAR Catalogue Similarity Search Dashboard
 
 A production-ready MVP for a multi-tenant catalogue similarity search app used by internal B2B teams.
 

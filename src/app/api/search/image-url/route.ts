@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       return new NextResponse('Failed to download image from URL. Please check the image URL is accessible.', { status: 400 })
     }
 
-    // Prepare FormData for the Mirrar API (same format as file upload)
+    // Prepare FormData for the mirrAR API (same format as file upload)
     const formData = new FormData()
     formData.append('file', imageBlob, 'search-image.jpg')
     formData.append('brand_id', brand.id)
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     // Use the same endpoint as file upload since we now have a file
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
     
-    console.log('🔍 Calling Mirrar Lens API with downloaded image...')
+    console.log('🔍 Calling mirrAR Lens API with downloaded image...')
     console.log('📡 Request URL:', searchApiUrl)
     
     // Add timeout and retry logic for reliability

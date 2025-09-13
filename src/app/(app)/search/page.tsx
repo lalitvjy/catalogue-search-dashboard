@@ -142,7 +142,7 @@ export default function SearchPage() {
         <div className="mb-4 sm:mb-8">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Catalogue Search</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">mirrAR Catalogue Search</h1>
               <p className="text-sm sm:text-base text-gray-600">Upload an image to find similar products</p>
             </div>
             <div className="flex items-center space-x-4">

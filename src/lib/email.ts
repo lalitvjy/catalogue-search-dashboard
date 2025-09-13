@@ -28,7 +28,7 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
     sendSmtpEmail.htmlContent = options.html
     sendSmtpEmail.textContent = options.text || ''
     sendSmtpEmail.sender = {
-      name: 'Catalogue Search',
+      name: 'mirrAR Catalogue Search',
       email: process.env.BREVO_FROM_EMAIL || 'noreply@yourdomain.com'
     }
     sendSmtpEmail.to = [{ email: options.to }]
@@ -54,11 +54,11 @@ export async function sendEmail(options: EmailOptions): Promise<void> {
 export function createPasswordResetEmail(email: string, resetUrl: string): EmailOptions {
   return {
     to: email,
-    subject: 'Reset your password - Catalogue Search',
+    subject: 'Reset your password - mirrAR Catalogue Search',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #333;">Reset Your Password</h2>
-        <p>You requested a password reset for your Catalogue Search account.</p>
+        <p>You requested a password reset for your mirrAR Catalogue Search account.</p>
         <p>Click the button below to reset your password:</p>
         <a href="${resetUrl}" style="display: inline-block; background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; margin: 20px 0;">Reset Password</a>
         <p>If the button doesn't work, copy and paste this link into your browser:</p>
@@ -66,13 +66,13 @@ export function createPasswordResetEmail(email: string, resetUrl: string): Email
         <p>This link will expire in 1 hour.</p>
         <p>If you didn't request this password reset, you can safely ignore this email.</p>
         <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        <p style="color: #666; font-size: 12px;">This email was sent from your Catalogue Search application.</p>
+        <p style="color: #666; font-size: 12px;">This email was sent from your mirrAR Catalogue Search application.</p>
       </div>
     `,
     text: `
 Reset Your Password
 
-You requested a password reset for your Catalogue Search account.
+You requested a password reset for your mirrAR Catalogue Search account.
 
 Click the link below to reset your password:
 ${resetUrl}
@@ -82,7 +82,7 @@ This link will expire in 1 hour.
 If you didn't request this password reset, you can safely ignore this email.
 
 ---
-This email was sent from your Catalogue Search application.
+This email was sent from your mirrAR Catalogue Search application.
     `
   }
 }

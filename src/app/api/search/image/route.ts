@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     const imageBlob = new Blob([imageBuffer], { type: file.type })
     console.log('Image blob size:', imageBlob.size)
 
-    // Create form data for the Mirrar Lens API - match exact working format
+    // Create form data for the mirrAR Lens API - match exact working format
     const externalFormData = new FormData()
     externalFormData.append('file', imageBlob, file.name || 'search-image.jpg')
     externalFormData.append('brand_id', brand.id)
@@ -96,7 +96,7 @@ export async function POST(req: Request) {
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
 
     
-    console.log('Calling Mirrar Lens API...')
+    console.log('Calling mirrAR Lens API...')
     
     // Add timeout and retry logic for reliability
     const controller = new AbortController()

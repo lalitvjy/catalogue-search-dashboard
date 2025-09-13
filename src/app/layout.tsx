@@ -7,7 +7,7 @@ import Footer from '@/components/Footer'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Catalogue Search Dashboard',
+  title: 'mirrAR Catalogue Search Dashboard',
   description: 'Multi-tenant catalogue similarity search app',
 }
 

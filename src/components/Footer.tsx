@@ -45,20 +45,16 @@ export default function Footer() {
             {/* Links */}
             <div className="flex items-center space-x-4">
               <a 
-                href="https://mirrar.com/privacy" 
-                target="_blank" 
-                rel="noopener noreferrer"
+                href="/privacy" 
                 className="hover:text-gray-700 transition-colors duration-200"
               >
-                Privacy
+                Privacy Policy
               </a>
               <a 
-                href="https://mirrar.com/terms" 
-                target="_blank" 
-                rel="noopener noreferrer"
+                href="/terms" 
                 className="hover:text-gray-700 transition-colors duration-200"
               >
-                Terms
+                Terms of Service
               </a>
               <a 
                 href="https://www.mirrar.com/contact-us" 

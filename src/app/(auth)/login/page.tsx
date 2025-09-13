@@ -50,7 +50,7 @@ export default function Login() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Catalogue Search</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">mirrAR Catalogue Search</h1>
           <p className="text-gray-600">Sign in to your account</p>
         </div>
       </div>
@@ -196,6 +196,25 @@ export default function Login() {
                 className="text-blue-600 hover:text-blue-500 font-medium"
               >
                 Sign up
+              </Link>
+            </p>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-500">
+              By signing in, you agree to our{' '}
+              <Link
+                href="/terms"
+                className="text-blue-600 hover:text-blue-500 underline"
+              >
+                Terms of Service
+              </Link>
+              {' '}and{' '}
+              <Link
+                href="/privacy"
+                className="text-blue-600 hover:text-blue-500 underline"
+              >
+                Privacy Policy
               </Link>
             </p>
           </div>
