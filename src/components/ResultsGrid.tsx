@@ -8,7 +8,7 @@ interface SearchResult {
   file_name: string
   image_url: string
   confidence: number
-  description?: string
+  description?: string | null
   attributes: Record<string, unknown>
 }
 
@@ -106,7 +106,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
 
       {/* Results Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {paginatedResults.map((result: SearchResult, index) => (
+        {paginatedResults.map((result: SearchResult, index) => { const descText = String(result.description ?? '\u00A0'); const _attrs = result.attributes as { category?: unknown }; const categoryLabel = typeof _attrs.category === 'string' ? (_attrs.category as string) : null; return (
         <div key={`${result.sku_id}-${index}`} className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200">
           {/* Image Container with Confidence Indicator */}
           <div className="relative aspect-square bg-white p-3">
@@ -155,21 +155,15 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
                   {result.sku_code}
                 </div>
                 {/* Description - Always show for consistent layout */}
-                {result.description && typeof result.description === 'string' ? (
-                  <div className="text-xs text-gray-600 mb-2 line-clamp-2 min-h-[2.5rem]">
-                    {result.description}
-                  </div>
-                ) : (
-                  <div className="text-xs text-gray-600 mb-2 line-clamp-2 min-h-[2.5rem]">
-                    &nbsp;
-                  </div>
-                )}
+                <div className="text-xs text-gray-600 mb-2 line-clamp-2 min-h-[2.5rem]">
+                  {descText}
+                </div>
                 {/* Category Tag */}
-                {result.attributes.category && typeof result.attributes.category === 'string' && (
+                {categoryLabel ? (
                   <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-md font-medium">
-                    {result.attributes.category}
+                    {categoryLabel}
                   </span>
-                )}
+                ) : null}
               </div>
               
               {/* Copy Action */}
@@ -193,7 +187,8 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
             )}
           </div>
         </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Pagination Controls */}

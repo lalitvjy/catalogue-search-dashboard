@@ -7,7 +7,7 @@ interface SearchResult {
   file_name: string
   image_url: string
   confidence: number
-  description?: string
+  description?: string | null
   attributes: Record<string, unknown>
 }
 
