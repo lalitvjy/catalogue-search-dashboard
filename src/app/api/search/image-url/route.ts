@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   try {
     // Parse JSON body from the request
     const body = await req.json()
-    const { image_url, limit = 20, score_threshold = 0.1 } = body
+    const { image_url, limit = 20, score_threshold = 0.1, diamond_wt_min, diamond_wt_max, ctrstone_wt_min, ctrstone_wt_max } = body
     
     if (!image_url) {
       return new NextResponse('No image URL provided', { status: 400 })
@@ -81,6 +81,10 @@ export async function POST(req: Request) {
     formData.append('score_threshold', score_threshold.toString())
     formData.append('category', '')
     formData.append('tags', '')
+    formData.append('diamond_wt_min', diamond_wt_min || '')
+    formData.append('diamond_wt_max', diamond_wt_max || '')
+    formData.append('ctrstone_wt_min', ctrstone_wt_min || '')
+    formData.append('ctrstone_wt_max', ctrstone_wt_max || '')
 
     // Use the same endpoint as file upload since we now have a file
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
@@ -149,6 +153,14 @@ export async function POST(req: Request) {
     }
     
     const results = matches.map((item: Record<string, unknown>, index: number) => {
+      // Debug logging for first item to see what fields are available
+      if (index === 0) {
+        console.log('API Response item structure:', Object.keys(item))
+        console.log('API Response item attributes:', item.attributes)
+        console.log('Diamond WT in item:', item.diamond_wt)
+        console.log('Center Stone WT in item:', item.ctrstone_wt)
+      }
+      
       // Use the real data from API response directly
       const imageUrl = item.public_url || item.url || item.image_url || ''
       

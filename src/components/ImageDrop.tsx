@@ -6,17 +6,32 @@ interface ExtendedSession {
   brandId?: string
 }
 
+interface SearchResult {
+  sku_id: string
+  sku_code: string
+  file_name: string
+  image_url: string
+  confidence: number
+  description?: string | null
+  attributes: Record<string, unknown>
+}
+
 interface ImageDropProps {
   onImageUpload: (imageUrl: string) => void
-  onSearchResults?: (results: unknown[]) => void
+  onSearchResults?: (results: SearchResult[]) => void
   onSearching?: (searching: boolean) => void
   uploadedImage?: string | null
   triggerSearch?: number  // When changed, triggers search for current uploaded image
   searchImageUrl?: string | null  // Original image URL to search (not blob URL)
   scoreThreshold?: number  // Score threshold for search
+  diamondWtMin?: number  // Diamond weight min filter
+  diamondWtMax?: number  // Diamond weight max filter
+  ctrstoneWtMin?: number  // Center stone weight min filter
+  ctrstoneWtMax?: number  // Center stone weight max filter
+  resultSize?: number  // Number of results to return
 }
 
-export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, scoreThreshold }: ImageDropProps) {
+export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, resultSize }: ImageDropProps) {
   const { data: session } = useSession()
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -25,10 +40,12 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
   // Handle triggering search for existing uploaded image
   useEffect(() => {
+    console.log('ImageDrop useEffect triggered:', { triggerSearch, searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax })
     if (triggerSearch && triggerSearch > 0 && searchImageUrl) {
+      console.log('Triggering search with params:', { imageUrl: searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax })
       searchForImageUrl(searchImageUrl)
     }
-  }, [triggerSearch, searchImageUrl])
+  }, [triggerSearch, searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax])
 
   const searchForImageUrl = async (imageUrl: string) => {
     try {
@@ -39,32 +56,71 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       setUploadProgress(30)
 
-      // Call our new URL-based search API endpoint
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
       
       let searchResponse: Response
-      try {
-        searchResponse = await fetch('/api/search/image-url', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            image_url: imageUrl,
-            limit: 20,
-            score_threshold: scoreThreshold || 0.1
-          }),
-          signal: controller.signal
-        })
-        clearTimeout(timeoutId)
-      } catch (fetchError) {
-        clearTimeout(timeoutId)
-        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-          throw new Error('Search request timed out. Please try again.')
+      
+      // Check if it's a blob URL (from file upload) or regular URL
+      if (imageUrl.startsWith('blob:')) {
+        // Convert blob URL to file and use /api/search/image endpoint
+        try {
+          const response = await fetch(imageUrl)
+          const blob = await response.blob()
+          const file = new File([blob], 'image.jpg', { type: blob.type })
+          
+          // Create form data for our API
+          const formData = new FormData()
+          formData.append('file', file, file.name || 'image.jpg')
+          formData.append('limit', (resultSize || 20).toString())
+          formData.append('score_threshold', (scoreThreshold || 0.1).toString())
+          formData.append('diamond_wt_min', (diamondWtMin || '').toString())
+          formData.append('diamond_wt_max', (diamondWtMax || '').toString())
+          formData.append('ctrstone_wt_min', (ctrstoneWtMin || '').toString())
+          formData.append('ctrstone_wt_max', (ctrstoneWtMax || '').toString())
+          
+          // Add brand ID from session if available
+          const extendedSession = session as unknown as ExtendedSession
+          const brandId = extendedSession?.brandId
+          if (brandId) {
+            formData.append('brand_id', brandId)
+          }
+          
+          searchResponse = await fetch('/api/search/image', {
+            method: 'POST',
+            body: formData,
+            signal: controller.signal
+          })
+        } catch (fetchError) {
+          clearTimeout(timeoutId)
+          throw new Error('Failed to process uploaded image for re-search')
         }
-        throw fetchError
+      } else {
+        // Use regular URL-based search API endpoint
+        try {
+          searchResponse = await fetch('/api/search/image-url', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              image_url: imageUrl,
+              limit: resultSize || 20,
+              score_threshold: scoreThreshold || 0.1,
+              diamond_wt_min: diamondWtMin || '',
+              diamond_wt_max: diamondWtMax || '',
+              ctrstone_wt_min: ctrstoneWtMin || '',
+              ctrstone_wt_max: ctrstoneWtMax || ''
+            }),
+            signal: controller.signal
+          })
+        } catch (fetchError) {
+          clearTimeout(timeoutId)
+          throw new Error('Failed to search image URL')
+        }
       }
+      
+      clearTimeout(timeoutId)
 
       setUploadProgress(80)
 
@@ -157,8 +213,12 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       // Create form data for our API
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')
-      formData.append('limit', '20')
+      formData.append('limit', (resultSize || 20).toString())
       formData.append('score_threshold', (scoreThreshold || 0.1).toString())
+      formData.append('diamond_wt_min', (diamondWtMin || '').toString())
+      formData.append('diamond_wt_max', (diamondWtMax || '').toString())
+      formData.append('ctrstone_wt_min', (ctrstoneWtMin || '').toString())
+      formData.append('ctrstone_wt_max', (ctrstoneWtMax || '').toString())
       
       // Add brand ID from session if available
       const extendedSession = session as unknown as ExtendedSession

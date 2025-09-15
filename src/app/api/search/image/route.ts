@@ -42,6 +42,10 @@ export async function POST(req: Request) {
     const limit = formData.get('limit') as string || '20'
     const scoreThreshold = formData.get('score_threshold') as string || '0.1'
     const requestedBrandId = formData.get('brand_id') as string
+    const diamondWtMin = formData.get('diamond_wt_min') as string
+    const diamondWtMax = formData.get('diamond_wt_max') as string
+    const ctrstoneWtMin = formData.get('ctrstone_wt_min') as string
+    const ctrstoneWtMax = formData.get('ctrstone_wt_max') as string
     
     // Log what brand IDs we're working with
     console.log('🔍 BRAND ID ANALYSIS:')
@@ -91,6 +95,10 @@ export async function POST(req: Request) {
     externalFormData.append('score_threshold', scoreThreshold)
     externalFormData.append('category', '') // Add empty category parameter
     externalFormData.append('tags', '')     // Add empty tags parameter
+    externalFormData.append('diamond_wt_min', diamondWtMin || '') // Add diamond weight min parameter
+    externalFormData.append('diamond_wt_max', diamondWtMax || '') // Add diamond weight max parameter
+    externalFormData.append('ctrstone_wt_min', ctrstoneWtMin || '') // Add center stone weight min parameter
+    externalFormData.append('ctrstone_wt_max', ctrstoneWtMax || '') // Add center stone weight max parameter
 
     // Get API URL first
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
@@ -159,6 +167,15 @@ export async function POST(req: Request) {
       const hasRealSkuId = item.sku_id && typeof item.sku_id === 'string' && item.sku_id !== ''
       const hasRealConfidence = typeof item.confidence === 'number' && item.confidence > 0
       
+      // Debug logging for first item to see what fields are available
+      if (index === 0) {
+        console.log('API Response item structure:', Object.keys(item))
+        console.log('API Response item attributes:', item.attributes)
+        console.log('Diamond WT in item:', item.diamond_wt)
+        console.log('Center Stone WT in item:', item.ctrstone_wt)
+        console.log('Diamond WT in attributes:', (item.attributes as Record<string, unknown>)?.diamond_wt)
+        console.log('Center Stone WT in attributes:', (item.attributes as Record<string, unknown>)?.ctrstone_wt)
+      }
       
       // Use the real data from API response directly
       // Check for image URL in different possible fields - prioritize public_url first, then url, then image_url

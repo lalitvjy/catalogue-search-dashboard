@@ -15,6 +15,10 @@ interface Filters {
   category?: string
   tags?: string
   confidence_min?: number
+  diamond_wt_min?: number
+  diamond_wt_max?: number
+  ctrstone_wt_min?: number
+  ctrstone_wt_max?: number
 }
 
 interface FiltersPanelProps {
@@ -23,26 +27,36 @@ interface FiltersPanelProps {
   results: SearchResult[]
   onApplyConfidenceFilter?: (confidence: number) => void
   isSearching?: boolean
+  resultSize?: number
+  onResultSizeChange?: (size: number) => void
+  onApplyAllFilters?: () => void
 }
 
-export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false }: FiltersPanelProps) {
+export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters }: FiltersPanelProps) {
   const [tempConfidence, setTempConfidence] = useState<number>(filters.confidence_min || 0)
   const [hasConfidenceChanged, setHasConfidenceChanged] = useState(false)
+  const [hasAnyFilterChanged, setHasAnyFilterChanged] = useState(false)
+  const [pendingFilters, setPendingFilters] = useState<Filters>({})
 
   // Update temp confidence when filters change externally
   useEffect(() => {
     setTempConfidence(filters.confidence_min || 0)
     setHasConfidenceChanged(false)
+    setHasAnyFilterChanged(false)
   }, [filters.confidence_min])
 
-  // Extract unique categories and tags from search results
+  // Extract unique categories, tags, diamond_wt, and ctrstone_wt from search results
   const facets = useMemo(() => {
     const categories: Record<string, number> = {}
     const tags: Record<string, number> = {}
+    const diamondWtValues: number[] = []
+    const ctrstoneWtValues: number[] = []
     
     results.forEach(result => {
       const category = result.attributes?.category
       const tag = result.attributes?.tags
+      const diamondWt = result.attributes?.diamond_wt
+      const ctrstoneWt = result.attributes?.ctrstone_wt
       
       if (category && typeof category === 'string') {
         categories[category] = (categories[category] || 0) + 1
@@ -51,19 +65,54 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
       if (tag && typeof tag === 'string') {
         tags[tag] = (tags[tag] || 0) + 1
       }
+      
+      if (diamondWt && (typeof diamondWt === 'string' || typeof diamondWt === 'number')) {
+        const diamondWtNum = typeof diamondWt === 'string' ? parseFloat(diamondWt) : diamondWt
+        if (!isNaN(diamondWtNum)) {
+          diamondWtValues.push(diamondWtNum)
+        }
+      }
+      
+      if (ctrstoneWt && (typeof ctrstoneWt === 'string' || typeof ctrstoneWt === 'number')) {
+        const ctrstoneWtNum = typeof ctrstoneWt === 'string' ? parseFloat(ctrstoneWt) : ctrstoneWt
+        if (!isNaN(ctrstoneWtNum)) {
+          ctrstoneWtValues.push(ctrstoneWtNum)
+        }
+      }
     })
     
-    return { categories, tags }
+    // Calculate min/max values
+    const diamondWtMin = diamondWtValues.length > 0 ? Math.min(...diamondWtValues) : 0
+    const diamondWtMax = diamondWtValues.length > 0 ? Math.max(...diamondWtValues) : 0
+    const ctrstoneWtMin = ctrstoneWtValues.length > 0 ? Math.min(...ctrstoneWtValues) : 0
+    const ctrstoneWtMax = ctrstoneWtValues.length > 0 ? Math.max(...ctrstoneWtValues) : 0
+    
+    // Debug logging
+    if (results.length > 0) {
+      console.log('Sample result attributes:', results[0]?.attributes)
+      console.log('Diamond WT range:', { min: diamondWtMin, max: diamondWtMax, values: diamondWtValues.length })
+      console.log('Center Stone WT range:', { min: ctrstoneWtMin, max: ctrstoneWtMax, values: ctrstoneWtValues.length })
+    }
+    
+    return { 
+      categories, 
+      tags, 
+      diamondWtMin, 
+      diamondWtMax, 
+      ctrstoneWtMin, 
+      ctrstoneWtMax 
+    }
   }, [results])
 
   const handleFilterChange = (key: keyof Filters, value: string | number | undefined) => {
-    const newFilters = { ...filters }
+    const newPendingFilters = { ...pendingFilters }
     if (value === '' || value === undefined) {
-      delete newFilters[key]
+      delete newPendingFilters[key]
     } else {
-      newFilters[key] = value as any
+      (newPendingFilters as any)[key] = value
     }
-    onFiltersChange(newFilters)
+    setPendingFilters(newPendingFilters)
+    setHasAnyFilterChanged(true)
   }
 
   const handleConfidenceSliderChange = (value: number) => {
@@ -71,19 +120,47 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
     const roundedValue = Math.round(value / 0.05) * 0.05
     setTempConfidence(roundedValue)
     setHasConfidenceChanged(roundedValue !== (filters.confidence_min || 0))
+    setHasAnyFilterChanged(true)
   }
 
-  const handleApplyConfidenceFilter = () => {
-    if (onApplyConfidenceFilter) {
-      onApplyConfidenceFilter(tempConfidence)
-    } else {
-      handleFilterChange('confidence_min', tempConfidence)
+  const handleResultSizeChange = (newSize: number) => {
+    console.log('FiltersPanel handleResultSizeChange called with:', newSize)
+    onResultSizeChange?.(newSize)
+    setHasAnyFilterChanged(true)
+  }
+
+  const handleApplyAllFilters = () => {
+    // Apply all pending filter changes
+    const newFilters = { ...filters, ...pendingFilters }
+    
+    // Apply confidence filter if it has changed
+    if (hasConfidenceChanged) {
+      if (onApplyConfidenceFilter) {
+        onApplyConfidenceFilter(tempConfidence)
+      } else {
+        newFilters.confidence_min = tempConfidence
+      }
     }
+    
+    // Update filters with all changes
+    onFiltersChange(newFilters)
+    
+    // Call parent's apply all filters function to trigger re-search
+    if (onApplyAllFilters) {
+      onApplyAllFilters()
+    }
+    
+    // Reset all change flags and pending filters
     setHasConfidenceChanged(false)
+    setHasAnyFilterChanged(false)
+    setPendingFilters({})
   }
 
   const clearFilters = () => {
     onFiltersChange({})
+    setHasAnyFilterChanged(false)
+    setHasConfidenceChanged(false)
+    setPendingFilters({})
   }
 
   const hasActiveFilters = Object.keys(filters).length > 0
@@ -108,14 +185,25 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
     <div className="space-y-3 sm:space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-900 text-sm sm:text-base">Filters</h3>
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="text-xs sm:text-sm text-blue-600 hover:text-blue-800"
-          >
-            Clear all
-          </button>
-        )}
+        <div className="flex items-center space-x-3">
+          {hasAnyFilterChanged && (
+            <button
+              onClick={handleApplyAllFilters}
+              disabled={isSearching}
+              className="text-xs sm:text-sm bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSearching ? 'Searching...' : 'Apply & Re-search'}
+            </button>
+          )}
+          {hasActiveFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs sm:text-sm text-blue-600 hover:text-blue-800"
+            >
+              Clear all
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Results Count - Hidden on mobile as it's shown in toggle button */}
@@ -128,7 +216,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
           <select
-            value={filters.category || ''}
+            value={pendingFilters.category !== undefined ? pendingFilters.category : (filters.category || '')}
             onChange={(e) => handleFilterChange('category', e.target.value || undefined)}
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -149,7 +237,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Tags</label>
           <select
-            value={filters.tags || ''}
+            value={pendingFilters.tags !== undefined ? pendingFilters.tags : (filters.tags || '')}
             onChange={(e) => handleFilterChange('tags', e.target.value || undefined)}
             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
@@ -162,6 +250,80 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
                 </option>
               ))}
           </select>
+        </div>
+      )}
+
+      {/* Diamond Weight Filter */}
+      {facets.diamondWtMax > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Diamond Weight (Range: {facets.diamondWtMin.toFixed(2)} - {facets.diamondWtMax.toFixed(2)})
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Min</label>
+              <input
+                type="number"
+                step="0.01"
+                min={facets.diamondWtMin}
+                max={facets.diamondWtMax}
+                value={pendingFilters.diamond_wt_min !== undefined ? pendingFilters.diamond_wt_min : (filters.diamond_wt_min || '')}
+                onChange={(e) => handleFilterChange('diamond_wt_min', e.target.value ? parseFloat(e.target.value) : undefined)}
+                placeholder={facets.diamondWtMin.toFixed(2)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Max</label>
+              <input
+                type="number"
+                step="0.01"
+                min={facets.diamondWtMin}
+                max={facets.diamondWtMax}
+                value={pendingFilters.diamond_wt_max !== undefined ? pendingFilters.diamond_wt_max : (filters.diamond_wt_max || '')}
+                onChange={(e) => handleFilterChange('diamond_wt_max', e.target.value ? parseFloat(e.target.value) : undefined)}
+                placeholder={facets.diamondWtMax.toFixed(2)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Center Stone Weight Filter */}
+      {facets.ctrstoneWtMax > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Center Stone Weight (Range: {facets.ctrstoneWtMin.toFixed(2)} - {facets.ctrstoneWtMax.toFixed(2)})
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Min</label>
+              <input
+                type="number"
+                step="0.01"
+                min={facets.ctrstoneWtMin}
+                max={facets.ctrstoneWtMax}
+                value={pendingFilters.ctrstone_wt_min !== undefined ? pendingFilters.ctrstone_wt_min : (filters.ctrstone_wt_min || '')}
+                onChange={(e) => handleFilterChange('ctrstone_wt_min', e.target.value ? parseFloat(e.target.value) : undefined)}
+                placeholder={facets.ctrstoneWtMin.toFixed(2)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-600 mb-1">Max</label>
+              <input
+                type="number"
+                step="0.01"
+                min={facets.ctrstoneWtMin}
+                max={facets.ctrstoneWtMax}
+                value={pendingFilters.ctrstone_wt_max !== undefined ? pendingFilters.ctrstone_wt_max : (filters.ctrstone_wt_max || '')}
+                onChange={(e) => handleFilterChange('ctrstone_wt_max', e.target.value ? parseFloat(e.target.value) : undefined)}
+                placeholder={facets.ctrstoneWtMax.toFixed(2)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -190,18 +352,22 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
           <span>100%</span>
         </div>
         
-        {/* Apply Filter Button */}
-        {hasConfidenceChanged && onApplyConfidenceFilter && (
-          <div className="mt-3">
-            <button
-              onClick={handleApplyConfidenceFilter}
-              disabled={isSearching}
-              className="w-full bg-blue-600 text-white text-sm font-medium py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {isSearching ? 'Searching...' : 'Apply Filter & Re-search'}
-            </button>
-          </div>
-        )}
+      </div>
+
+      {/* Result Count Selector */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Number of Results
+        </label>
+        <select
+          value={resultSize}
+          onChange={(e) => handleResultSizeChange(Number(e.target.value))}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value={20}>20 results</option>
+          <option value={40}>40 results</option>
+          <option value={100}>100 results</option>
+        </select>
       </div>
 
       {/* Active Filters Display */}
@@ -214,7 +380,17 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
                 key={key}
                 className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
               >
-                {key === 'confidence_min' ? `Min confidence: ${(value * 100).toFixed(0)}%` : `${key}: ${value}`}
+                {key === 'confidence_min' 
+                  ? `Min confidence: ${(value * 100).toFixed(0)}%` 
+                  : key === 'diamond_wt_min'
+                    ? `Diamond Weight Min: ${value}`
+                    : key === 'diamond_wt_max'
+                      ? `Diamond Weight Max: ${value}`
+                      : key === 'ctrstone_wt_min'
+                        ? `Center Stone Weight Min: ${value}`
+                        : key === 'ctrstone_wt_max'
+                          ? `Center Stone Weight Max: ${value}`
+                          : `${key}: ${value}`}
                 <button
                   onClick={() => handleFilterChange(key as keyof Filters, undefined)}
                   className="ml-1 text-blue-600 hover:text-blue-800"

@@ -9,20 +9,34 @@ import LogoutModal from '@/components/LogoutModal'
 
 interface ExtendedSession {
   brandId?: string
+  role?: string
+}
+
+interface SearchResult {
+  sku_id: string
+  sku_code: string
+  file_name: string
+  image_url: string
+  confidence: number
+  description?: string | null
+  attributes: Record<string, unknown>
 }
 
 interface Filters {
   category?: string
   tags?: string
   confidence_min?: number
+  diamond_wt_min?: number
+  diamond_wt_max?: number
+  ctrstone_wt_min?: number
+  ctrstone_wt_max?: number
 }
 
 export default function SearchPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [imageUrl, setImageUrl] = useState('')
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-  const [results, setResults] = useState<any[]>([])
+  const [results, setResults] = useState<SearchResult[]>([])
   const [filters, setFilters] = useState<Filters>({})
   const [searching, setSearching] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -30,6 +44,7 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null)
   const [triggerSearch, setTriggerSearch] = useState(0)
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
+  const [resultSize, setResultSize] = useState<number>(20)
 
   // Check authentication status and brand access
   useEffect(() => {
@@ -65,8 +80,21 @@ export default function SearchPage() {
 
   // Don't render anything if not authenticated or no brand access (will redirect)
   const extendedSession = session as unknown as ExtendedSession
-  if (!session || !extendedSession.brandId) {
+  
+  if (!session) {
     return null
+  }
+  
+  // If we have a session but no brandId, show a message instead of redirecting immediately
+  if (!extendedSession.brandId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Setting up your account...</p>
+        </div>
+      </div>
+    )
   }
 
   // Filter results based on current filters
@@ -76,6 +104,25 @@ export default function SearchPage() {
     }
     if (filters.tags && result.attributes?.tags !== filters.tags) {
       return false
+    }
+    // Check diamond weight range
+    if (filters.diamond_wt_min !== undefined || filters.diamond_wt_max !== undefined) {
+      const diamondWt = typeof result.attributes?.diamond_wt === 'number' ? result.attributes.diamond_wt : 
+                       typeof result.attributes?.diamond_wt === 'string' ? parseFloat(result.attributes.diamond_wt) : null
+      if (diamondWt === null || isNaN(diamondWt)) return false
+      
+      if (filters.diamond_wt_min !== undefined && diamondWt < filters.diamond_wt_min) return false
+      if (filters.diamond_wt_max !== undefined && diamondWt > filters.diamond_wt_max) return false
+    }
+    
+    // Check center stone weight range
+    if (filters.ctrstone_wt_min !== undefined || filters.ctrstone_wt_max !== undefined) {
+      const ctrstoneWt = typeof result.attributes?.ctrstone_wt === 'number' ? result.attributes.ctrstone_wt : 
+                        typeof result.attributes?.ctrstone_wt === 'string' ? parseFloat(result.attributes.ctrstone_wt) : null
+      if (ctrstoneWt === null || isNaN(ctrstoneWt)) return false
+      
+      if (filters.ctrstone_wt_min !== undefined && ctrstoneWt < filters.ctrstone_wt_min) return false
+      if (filters.ctrstone_wt_max !== undefined && ctrstoneWt > filters.ctrstone_wt_max) return false
     }
     if (filters.confidence_min && result.confidence < filters.confidence_min) {
       return false
@@ -87,15 +134,16 @@ export default function SearchPage() {
 
 
   const handleImageUpload = (url: string) => {
-    setImageUrl(url)
     setUploadedImage(url || null)
+    // Set searchImageUrl for re-search functionality
+    setSearchImageUrl(url || null)
     // If URL is empty (image removed), clear results
     if (!url) {
       setResults([])
     }
   }
 
-  const handleSearchResults = (searchResults: any[]) => {
+  const handleSearchResults = (searchResults: SearchResult[]) => {
     setResults(searchResults)
     // Scroll to top when new results are loaded
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -130,10 +178,23 @@ export default function SearchPage() {
     }
   }
 
-  const runSearch = async () => {
-    // File uploads are handled directly in ImageDrop component
-    // This function is kept for potential future URL-based searches
+  const handleResultSizeChange = (newSize: number) => {
+    console.log('handleResultSizeChange called with:', newSize)
+    setResultSize(newSize)
+    // Don't trigger search immediately - wait for Apply button
   }
+
+  const handleApplyAllFilters = () => {
+    console.log('handleApplyAllFilters called, searchImageUrl:', searchImageUrl, 'resultSize:', resultSize)
+    // If we have a search image URL, re-run the search with current filters and result size
+    if (searchImageUrl) {
+      console.log('Applying all filters with result size:', resultSize)
+      setTriggerSearch(Date.now())
+    } else {
+      console.log('No searchImageUrl, cannot trigger search')
+    }
+  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -189,10 +250,14 @@ export default function SearchPage() {
               triggerSearch={triggerSearch}
               searchImageUrl={searchImageUrl}
               scoreThreshold={filters.confidence_min || 0.1}
+              diamondWtMin={filters.diamond_wt_min}
+              diamondWtMax={filters.diamond_wt_max}
+              ctrstoneWtMin={filters.ctrstone_wt_min}
+              ctrstoneWtMax={filters.ctrstone_wt_max}
+              resultSize={resultSize}
             />
           </div>
-
-          {/* Mobile Filter Toggle Button */}
+    
           <div className="sm:hidden">
             <button
               onClick={() => setShowFilters(!showFilters)}
@@ -218,8 +283,8 @@ export default function SearchPage() {
             <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
               <div className="sm:hidden mb-4">
                 <h3 className="font-medium text-gray-900 mb-2">Filters</h3>
-                <div className="text-sm text-gray-600 mb-4">
-                  {filteredResults.length} of {results.length} results
+                <div className="text-sm text-gray-700 font-medium mb-4">
+                  Showing {Math.min(1, filteredResults.length)}-{Math.min(20, filteredResults.length)} of {filteredResults.length}
                 </div>
               </div>
               <FiltersPanel 
@@ -228,6 +293,9 @@ export default function SearchPage() {
                 results={results}
                 onApplyConfidenceFilter={handleApplyConfidenceFilter}
                 isSearching={searching}
+                resultSize={resultSize}
+                onResultSizeChange={handleResultSizeChange}
+                onApplyAllFilters={handleApplyAllFilters}
               />
             </div>
           </div>
@@ -236,11 +304,26 @@ export default function SearchPage() {
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <h2 className="text-lg font-semibold text-gray-800">Search Results</h2>
-              {results.length > 0 && (
-                <span className="text-sm text-gray-500">
-                  {filteredResults.length} of {results.length} result{results.length !== 1 ? 's' : ''}
-                </span>
-              )}
+              <div className="flex items-center space-x-4">
+                {results.length > 0 && (
+                  <span className="text-sm text-gray-700 font-medium">
+                    Showing {Math.min(1, filteredResults.length)}-{Math.min(20, filteredResults.length)} of {filteredResults.length}
+                  </span>
+                )}
+                <div className="flex items-center space-x-2">
+                  <label htmlFor="result-size" className="text-sm text-gray-600">Results:</label>
+                  <select
+                    id="result-size"
+                    value={resultSize}
+                    onChange={(e) => handleResultSizeChange(Number(e.target.value))}
+                    className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value={20}>20</option>
+                    <option value={40}>40</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
             </div>
             
             <ResultsGrid results={filteredResults} searching={searching} onFindSimilar={handleFindSimilar} />
@@ -262,6 +345,11 @@ export default function SearchPage() {
                 triggerSearch={triggerSearch}
                 searchImageUrl={searchImageUrl}
                 scoreThreshold={filters.confidence_min || 0.1}
+                diamondWtMin={filters.diamond_wt_min}
+                diamondWtMax={filters.diamond_wt_max}
+                ctrstoneWtMin={filters.ctrstone_wt_min}
+                ctrstoneWtMax={filters.ctrstone_wt_max}
+                resultSize={resultSize}
               />
             </div>
 
@@ -273,6 +361,9 @@ export default function SearchPage() {
                 results={results}
                 onApplyConfidenceFilter={handleApplyConfidenceFilter}
                 isSearching={searching}
+                resultSize={resultSize}
+                onResultSizeChange={handleResultSizeChange}
+                onApplyAllFilters={handleApplyAllFilters}
               />
             </div>
           </div>
@@ -282,7 +373,13 @@ export default function SearchPage() {
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-lg font-semibold text-gray-800">Search Results</h2>
-                
+                <div className="flex items-center space-x-4">
+                  {results.length > 0 && (
+                    <span className="text-sm text-gray-700 font-medium">
+                      Showing {Math.min(1, filteredResults.length)}-{Math.min(20, filteredResults.length)} of {filteredResults.length}
+                    </span>
+                  )}
+                </div>
               </div>
               
               <ResultsGrid results={filteredResults} searching={searching} onFindSimilar={handleFindSimilar} />

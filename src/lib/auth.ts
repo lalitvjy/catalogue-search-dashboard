@@ -141,6 +141,7 @@ export const authOptions: NextAuthOptions = {
       
       if (token.email) {
         const u = await db.user.findUnique({ where: { email: token.email } })
+        console.log('🔍 JWT callback - User lookup:', { email: token.email, found: !!u, brandId: u?.brandId, role: u?.role })
         if (u) { 
           token.uid = u.id; 
           token.brandId = u.brandId; 
@@ -158,11 +159,13 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
+      console.log('🔍 Session callback - Token data:', { uid: token.uid, brandId: token.brandId, role: token.role, email: token.email })
       if (session.user) {
         ;(session as any).uid = token.uid
         ;(session as any).brandId = token.brandId
         ;(session as any).role = token.role
       }
+      console.log('🔍 Session callback - Final session:', { uid: (session as any).uid, brandId: (session as any).brandId, role: (session as any).role })
       return session
     },
   },
