@@ -44,11 +44,11 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
       const category = result.attributes?.category
       const tag = result.attributes?.tags
       
-      if (category) {
+      if (category && typeof category === 'string') {
         categories[category] = (categories[category] || 0) + 1
       }
       
-      if (tag) {
+      if (tag && typeof tag === 'string') {
         tags[tag] = (tags[tag] || 0) + 1
       }
     })
