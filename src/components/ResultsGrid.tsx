@@ -8,7 +8,8 @@ interface SearchResult {
   file_name: string
   image_url: string
   confidence: number
-  attributes: Record<string, any>
+  description?: string
+  attributes: Record<string, unknown>
 }
 
 interface ResultsGridProps {
@@ -23,8 +24,6 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
   const [currentPage, setCurrentPage] = useState(1)
   const [sortBy, setSortBy] = useState<'confidence' | 'name'>('confidence')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
-
-
 
   // Reset to first page when results change
   useEffect(() => {
@@ -107,7 +106,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
 
       {/* Results Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {paginatedResults.map((result, index) => (
+        {paginatedResults.map((result: SearchResult, index) => (
         <div key={`${result.sku_id}-${index}`} className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200">
           {/* Image Container with Confidence Indicator */}
           <div className="relative aspect-square bg-white p-3">
@@ -152,11 +151,15 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
             {/* Product Info Row */}
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm text-gray-900 truncate mb-1" title={result.sku_code}>
+                <div className="font-medium text-sm text-gray-900 break-words mb-1" title={result.sku_code}>
                   {result.sku_code}
                 </div>
+                {/* Description - Always show for consistent layout */}
+                <div className="text-xs text-gray-600 mb-2 line-clamp-2 min-h-[2.5rem]" title={String(result.description || "")}>
+                  {String(result.description || "")}
+                </div>
                 {/* Category Tag */}
-                {result.attributes.category && (
+                {result.attributes.category && typeof result.attributes.category === 'string' && (
                   <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-md font-medium">
                     {result.attributes.category}
                   </span>

@@ -170,10 +170,11 @@ export async function POST(req: Request) {
         file_name: item.file_name || 'Unknown',
         image_url: imageUrl,
         confidence: item.confidence || 0,
+        description: (item.description as string) || (item.attributes as Record<string, unknown>)?.description || '',
         attributes: {
           // Include both top-level and nested attributes
-          category: (item.category as string) || (item.attributes as any)?.category || '',
-          tags: (item.tags as string) || (item.attributes as any)?.tags || '',
+          category: (item.category as string) || (item.attributes as Record<string, unknown>)?.category || '',
+          tags: (item.tags as string) || (item.attributes as Record<string, unknown>)?.tags || '',
           // Include all attributes from the nested attributes object
           ...(item.attributes as Record<string, unknown>) || {}
         }
