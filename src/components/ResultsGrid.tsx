@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import CopySku from './CopySku'
 
 interface SearchResult {
@@ -106,9 +106,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
 
       {/* Results Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {paginatedResults.map((result: SearchResult, index) => {
-          const description = String(result.description || '');
-          return (
+        {paginatedResults.map((result: SearchResult, index) => (
         <div key={`${result.sku_id}-${index}`} className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200">
           {/* Image Container with Confidence Indicator */}
           <div className="relative aspect-square bg-white p-3">
@@ -157,9 +155,15 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
                   {result.sku_code}
                 </div>
                 {/* Description - Always show for consistent layout */}
-                <div className="text-xs text-gray-600 mb-2 line-clamp-2 min-h-[2.5rem]" title={description}>
-                  <span>{description}</span>
-                </div>
+                {result.description && typeof result.description === 'string' ? (
+                  <div className="text-xs text-gray-600 mb-2 line-clamp-2 min-h-[2.5rem]">
+                    {result.description}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-600 mb-2 line-clamp-2 min-h-[2.5rem]">
+                    &nbsp;
+                  </div>
+                )}
                 {/* Category Tag */}
                 {result.attributes.category && typeof result.attributes.category === 'string' && (
                   <span className="inline-block px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-md font-medium">
@@ -189,8 +193,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
             )}
           </div>
         </div>
-          )
-        })}
+        ))}
       </div>
 
       {/* Pagination Controls */}
