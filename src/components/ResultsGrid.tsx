@@ -22,11 +22,39 @@ const ITEMS_PER_PAGE = 20
 
 export default function ResultsGrid({ results, searching, onFindSimilar }: ResultsGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
+  const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
+  const [showPopup, setShowPopup] = useState(false)
+  const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
 
   // Reset to first page when results change
   useEffect(() => {
     setCurrentPage(1)
   }, [results])
+
+  // Prevent body scrolling when modal is open
+  useEffect(() => {
+    if (showPopup) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = 'unset'
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'unset'
+    }
+  }, [showPopup])
+
+  const handleImageClick = (result: SearchResult, event: React.MouseEvent) => {
+    setSelectedResult(result)
+    setClickedElement(event.currentTarget as HTMLElement)
+    setShowPopup(true)
+  }
+
+  const handleClosePopup = () => {
+    setShowPopup(false)
+    setSelectedResult(null)
+  }
 
   // Sort results by confidence (high to low)
   const sortedResults = [...results].sort((a, b) => b.confidence - a.confidence)
@@ -69,9 +97,15 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
       {/* Results Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
         {paginatedResults.map((result: SearchResult, index) => { const descText = String(result.description ?? '\u00A0'); const _attrs = result.attributes as { category?: unknown }; const categoryLabel = typeof _attrs.category === 'string' ? (_attrs.category as string) : null; return (
-        <div key={`${result.sku_id}-${index}`} className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 flex flex-col">
+        <div 
+          key={`${result.sku_id}-${index}`} 
+          className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 flex flex-col"
+        >
           {/* Image Container with Confidence Indicator */}
-          <div className="relative aspect-square bg-white p-3">
+          <div 
+            className="relative aspect-square bg-white p-3 cursor-zoom-in hover:bg-gray-50 transition-colors"
+            onClick={(e) => handleImageClick(result, e)}
+          >
             {result.image_url ? (
               <img
                 src={result.image_url}
@@ -204,6 +238,48 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
             >
               Next
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Animated Scale-Up Overlay */}
+      {showPopup && selectedResult && clickedElement && (
+        <div 
+          className="fixed inset-0 z-50"
+          onClick={handleClosePopup}
+        >
+          <div
+            className="absolute bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-200"
+            style={{
+              left: clickedElement.getBoundingClientRect().left,
+              top: clickedElement.getBoundingClientRect().top,
+              width: clickedElement.getBoundingClientRect().width,
+              height: clickedElement.getBoundingClientRect().height,
+              transform: 'scale(2)',
+              transformOrigin: 'center center',
+              transition: 'all 0.3s ease-out',
+              zIndex: 1000
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+{(() => {
+              const thumbnailImg = clickedElement.querySelector('img')
+              if (thumbnailImg && selectedResult.image_url) {
+                return (
+                  <img
+                    src={thumbnailImg.src}
+                    alt={selectedResult.sku_code}
+                    className="w-full h-full object-contain"
+                  />
+                )
+              } else {
+                return (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                    Image not available
+                  </div>
+                )
+              }
+            })()}
           </div>
         </div>
       )}
