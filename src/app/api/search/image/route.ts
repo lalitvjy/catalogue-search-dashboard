@@ -63,9 +63,9 @@ export async function POST(req: Request) {
     }
 
     // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png']
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
-      return new NextResponse(`Invalid file type. Only JPG and PNG images are supported. Received: ${file.type}`, { status: 400 })
+      return new NextResponse(`Invalid file type. Only JPG, PNG, and WebP images are supported. Received: ${file.type}`, { status: 400 })
     }
 
     // Validate file size (max 10MB)
