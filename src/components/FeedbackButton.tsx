@@ -1,9 +1,16 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 
 export default function FeedbackButton() {
   const [isHovered, setIsHovered] = useState(false)
+  const pathname = usePathname()
+  
+  // Only show on the search page
+  if (pathname !== '/search') {
+    return null
+  }
 
   return (
     <a
