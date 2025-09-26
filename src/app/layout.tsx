@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import 'react-image-crop/dist/ReactCrop.css'
 import Providers from '@/components/Providers'
 import Footer from '@/components/Footer'
 import FeedbackButton from '@/components/FeedbackButton'
