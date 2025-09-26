@@ -1,5 +1,6 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import ReactCrop, { type Crop } from 'react-image-crop'
 import { useSession } from 'next-auth/react'
 
 interface ExtendedSession {
@@ -40,6 +41,134 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
   const [imageUrl, setImageUrl] = useState('')
   const [searchMode, setSearchMode] = useState<'upload' | 'url' | 'clipboard'>('upload')
   const [clipboardReady, setClipboardReady] = useState(false)
+  const [crop, setCrop] = useState<Crop | undefined>()
+  const imgRef = useRef<HTMLImageElement | null>(null)
+  const cropTimeoutRef = useRef<number | null>(null)
+
+  const searchWithFile = async (file: File) => {
+    try {
+      setUploading(true)
+      onSearching?.(true)
+      setUploadProgress(10)
+
+      const formData = new FormData()
+      formData.append('file', file, file.name || 'image.jpg')
+      formData.append('limit', (resultSize || 20).toString())
+      formData.append('score_threshold', (scoreThreshold || 0.1).toString())
+      formData.append('diamond_wt_min', (diamondWtMin || '').toString())
+      formData.append('diamond_wt_max', (diamondWtMax || '').toString())
+      formData.append('ctrstone_wt_min', (ctrstoneWtMin || '').toString())
+      formData.append('ctrstone_wt_max', (ctrstoneWtMax || '').toString())
+
+      const extendedSession = session as unknown as ExtendedSession
+      const brandId = extendedSession?.brandId
+      if (brandId) {
+        formData.append('brand_id', brandId)
+      }
+
+      setUploadProgress(40)
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 60000)
+      let searchResponse: Response
+      try {
+        searchResponse = await fetch('/api/search/image', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal
+        })
+      } finally {
+        clearTimeout(timeoutId)
+      }
+
+      setUploadProgress(80)
+
+      if (!searchResponse.ok) {
+        const errorText = await searchResponse.text()
+        console.error('Cropped search API error:', searchResponse.status, errorText)
+        let errorMessage = 'Failed to search cropped image'
+        if (searchResponse.status === 400) errorMessage = 'Invalid cropped image'
+        if (searchResponse.status === 413) errorMessage = 'Cropped image is too large'
+        if (searchResponse.status === 429) errorMessage = 'Too many requests. Please wait'
+        if (searchResponse.status >= 500) errorMessage = 'Search service temporarily unavailable'
+        throw new Error(errorMessage)
+      }
+
+      const searchResults = await searchResponse.json()
+      const results = searchResults.results || []
+      onSearchResults?.(results)
+      setUploadProgress(100)
+    } catch (err) {
+      console.error('Cropped image search failed:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to search cropped image.'
+      setError(errorMessage)
+      onSearchResults?.([])
+    } finally {
+      setUploading(false)
+      setUploadProgress(0)
+      onSearching?.(false)
+    }
+  }
+
+  const getCroppedBlob = async (sourceUrl: string, cropRect: Crop): Promise<Blob> => {
+    const sourceBlob = sourceUrl.startsWith('blob:')
+      ? await (await fetch(sourceUrl)).blob()
+      : await (await fetch(sourceUrl, { cache: 'no-store' })).blob()
+
+    const imageObjectUrl = URL.createObjectURL(sourceBlob)
+    try {
+      const imageEl = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image()
+        img.onload = () => resolve(img)
+        img.onerror = reject
+        img.src = imageObjectUrl
+      })
+
+      const displayedWidth = imgRef.current?.clientWidth || imageEl.naturalWidth
+      const displayedHeight = imgRef.current?.clientHeight || imageEl.naturalHeight
+      const scaleX = imageEl.naturalWidth / Math.max(1, displayedWidth)
+      const scaleY = imageEl.naturalHeight / Math.max(1, displayedHeight)
+
+      const sx = Math.max(0, Math.floor((cropRect.x || 0) * scaleX))
+      const sy = Math.max(0, Math.floor((cropRect.y || 0) * scaleY))
+      const sWidth = Math.max(1, Math.floor((cropRect.width || 0) * scaleX))
+      const sHeight = Math.max(1, Math.floor((cropRect.height || 0) * scaleY))
+
+      const canvas = document.createElement('canvas')
+      canvas.width = sWidth
+      canvas.height = sHeight
+      const ctx = canvas.getContext('2d')
+      if (!ctx) throw new Error('Canvas not supported')
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(imageEl, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight)
+
+      const blob: Blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas export failed'))), 'image/jpeg', 0.92)
+      })
+      return blob
+    } finally {
+      URL.revokeObjectURL(imageObjectUrl)
+    }
+  }
+
+  const handleCropComplete = (c: Crop) => {
+    if (cropTimeoutRef.current) {
+      window.clearTimeout(cropTimeoutRef.current)
+      cropTimeoutRef.current = null
+    }
+    cropTimeoutRef.current = window.setTimeout(async () => {
+      if (!uploadedImage || !c || (c.width ?? 0) < 5 || (c.height ?? 0) < 5) return
+      if (uploading) return
+      try {
+        const blob = await getCroppedBlob(uploadedImage, c)
+        const file = new File([blob], 'crop.jpg', { type: blob.type || 'image/jpeg' })
+        await searchWithFile(file)
+      } catch (e) {
+        console.error('Cropping failed:', e)
+        setError('Failed to crop image. Try a different selection.')
+      }
+    }, 400)
+  }
 
   // Handle triggering search for existing uploaded image
   useEffect(() => {
@@ -315,6 +444,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       
       // Set the uploaded image immediately for display via parent callback
       onImageUpload(tempUrl)
+      setCrop(undefined) // Reset crop area for new image
       setUploadProgress(30) // Image loaded
       
       // Create form data for our API
@@ -420,6 +550,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     setImageUrl('') // Clear URL input
     setSearchMode('upload') // Reset to upload mode
     setClipboardReady(false) // Reset clipboard state
+    setCrop(undefined) // Reset crop area
   }
 
   const handleUrlSearch = async () => {
@@ -438,6 +569,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     
     // Set the image URL for display
     onImageUpload(imageUrl.trim())
+    setCrop(undefined) // Reset crop area for new image
     await searchByUrl(imageUrl.trim())
   }
 
@@ -498,6 +630,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       
       // Set the uploaded image immediately for display via parent callback
       onImageUpload(tempUrl)
+      setCrop(undefined) // Reset crop area for new image
       
       // Create form data for our API
       const formData = new FormData()
@@ -584,12 +717,15 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     return (
       <div className="space-y-4">
         <div className="relative aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 shadow-sm overflow-hidden">
-          <img
-            src={uploadedImage}
-            alt="Uploaded image"
-            className="w-full h-full object-contain"
-            style={{ aspectRatio: '1 / 1', backgroundColor: '#f3f4f6' }}
-          />
+          <ReactCrop crop={crop} onChange={(c) => setCrop(c)} onComplete={handleCropComplete}>
+            <img
+              src={uploadedImage}
+              alt="Uploaded image"
+              className="w-full h-full object-contain"
+              style={{ aspectRatio: '1 / 1', backgroundColor: '#f3f4f6' }}
+              ref={imgRef}
+            />
+          </ReactCrop>
           <button
             onClick={removeImage}
             className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
@@ -597,23 +733,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           >
             ×
           </button>
-{/* Only show loading overlay for regular file uploads */}
-          {uploading && searchMode === 'upload' && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center rounded-lg">
-              <div className="text-white text-center p-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-3"></div>
-                <p className="text-sm font-medium mb-2">Searching for similar products...</p>
-                {/* Progress bar */}
-                <div className="w-full bg-gray-600 rounded-full h-2 mb-2">
-                  <div 
-                    className="bg-white h-2 rounded-full transition-all duration-300" 
-                    style={{ width: `${uploadProgress}%` }}
-                  ></div>
-                </div>
-                <p className="text-xs opacity-75">{uploadProgress}% complete</p>
-              </div>
-            </div>
-          )}
         </div>
         <div className="text-center">
           <p className="text-sm text-gray-600 font-medium">

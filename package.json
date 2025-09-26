@@ -25,6 +25,7 @@
     "next-auth": "^4.24.11",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-image-crop": "11.0.7",
     "zod": "^4.0.17"
   },
   "devDependencies": {
