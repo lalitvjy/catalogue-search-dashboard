@@ -1,0 +1,71 @@
+'use client'
+import { useState } from 'react'
+import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline'
+import { HandThumbUpIcon as HandThumbUpSolid, HandThumbDownIcon as HandThumbDownSolid } from '@heroicons/react/24/solid'
+
+interface ActionButtonsProps {
+  className?: string
+  onLike?: () => void
+  onDislike?: () => void
+}
+
+type LikeState = 'none' | 'liked' | 'disliked'
+
+export default function ActionButtons({ className = '', onLike, onDislike }: ActionButtonsProps) {
+  const [likeState, setLikeState] = useState<LikeState>('none')
+
+  const handleLike = () => {
+    const newState = likeState === 'liked' ? 'none' : 'liked'
+    setLikeState(newState)
+    if (newState === 'liked') {
+      onLike?.()
+    }
+  }
+
+  const handleDislike = () => {
+    const newState = likeState === 'disliked' ? 'none' : 'disliked'
+    setLikeState(newState)
+    if (newState === 'disliked') {
+      onDislike?.()
+    }
+  }
+
+  return (
+    <div className={`flex items-center space-x-0.5 ${className}`}>
+      {/* Like Button */}
+      <button
+        onClick={handleLike}
+        className={`p-1.5 rounded-md transition-colors ${
+          likeState === 'liked'
+            ? 'text-red-600 hover:text-red-700 bg-red-50'
+            : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
+        }`}
+        title={likeState === 'liked' ? 'Unlike' : 'Like this product'}
+      >
+        {likeState === 'liked' ? (
+          <HandThumbUpSolid className="w-4 h-4" />
+        ) : (
+          <HandThumbUpIcon className="w-4 h-4" />
+        )}
+      </button>
+
+      {/* Dislike Button */}
+      <button
+        onClick={handleDislike}
+        className={`p-1.5 rounded-md transition-colors ${
+          likeState === 'disliked'
+            ? 'text-red-600 hover:text-red-700 bg-red-50'
+            : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+        }`}
+        title={likeState === 'disliked' ? 'Remove dislike' : 'Dislike this product'}
+      >
+        {likeState === 'disliked' ? (
+          <HandThumbDownSolid className="w-4 h-4" />
+        ) : (
+          <HandThumbDownIcon className="w-4 h-4" />
+        )}
+      </button>
+
+    </div>
+  )
+}

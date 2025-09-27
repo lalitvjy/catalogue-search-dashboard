@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { DocumentDuplicateIcon, CheckIcon } from '@heroicons/react/24/outline'
 
 interface CopySkuProps {
   skuCode: string
@@ -31,10 +32,18 @@ export default function CopySku({ skuCode, className = '' }: CopySkuProps) {
   return (
     <button
       onClick={handleCopy}
-      className={`text-blue-600 hover:text-blue-800 text-xs font-medium transition-colors ${className}`}
+      className={`p-1.5 rounded-md transition-colors ${
+        copied 
+          ? 'text-green-600 hover:text-green-700 bg-green-50' 
+          : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+      } ${className}`}
       title="Copy SKU to clipboard"
     >
-      {copied ? 'Copied!' : 'Copy'}
+      {copied ? (
+        <CheckIcon className="w-4 h-4" />
+      ) : (
+        <DocumentDuplicateIcon className="w-4 h-4" />
+      )}
     </button>
   )
 }
