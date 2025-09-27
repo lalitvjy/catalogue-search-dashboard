@@ -295,3 +295,5 @@ const handleFileUpload = async (file: File) => {
 6. **Test edge cases**: What happens with no results, network errors, etc.
 
 Remember: This is a production application serving real businesses. Code quality, security, and reliability are paramount.
+
+Remember: This is a production application serving real businesses. Code quality, security, and reliability are paramount.
