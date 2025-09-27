@@ -1,7 +1,11 @@
+'use client'
 import Link from 'next/link'
-import { ArrowRightIcon, MagnifyingGlassIcon, PhotoIcon, CheckIcon, PlayIcon } from '@heroicons/react/24/outline'
+import { ArrowRightIcon, MagnifyingGlassIcon, PhotoIcon, CheckIcon, PlayIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
+import { useState } from 'react'
 
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -18,6 +22,8 @@ export default function Home() {
                 </div>
               </div>
             </div>
+            
+            {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-8">
               <Link href="#features" className="text-gray-600 hover:text-gray-900 text-sm font-medium">
                 Features
@@ -29,7 +35,9 @@ export default function Home() {
                 Demo
               </Link>
             </div>
-            <div className="flex items-center space-x-4">
+            
+            {/* Desktop CTA Buttons */}
+            <div className="hidden md:flex items-center space-x-4">
               <Link
                 href="/login"
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
@@ -43,7 +51,67 @@ export default function Home() {
                 Get Started
               </Link>
             </div>
+
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              <button
+                type="button"
+                className="text-gray-600 hover:text-gray-900 p-2"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? (
+                  <XMarkIcon className="h-6 w-6" />
+                ) : (
+                  <Bars3Icon className="h-6 w-6" />
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-100">
+              <div className="px-2 pt-2 pb-3 space-y-1">
+                <Link
+                  href="#features"
+                  className="block px-3 py-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Features
+                </Link>
+                <Link
+                  href="#pricing"
+                  className="block px-3 py-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Pricing
+                </Link>
+                <Link
+                  href="#demo"
+                  className="block px-3 py-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Demo
+                </Link>
+                <div className="pt-2 border-t border-gray-100">
+                  <Link
+                    href="/login"
+                    className="block px-3 py-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="block mx-3 mt-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all duration-200 text-center"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Get Started
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -86,22 +154,22 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row gap-4 mb-12 justify-center lg:justify-start">
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 min-w-[200px]"
+                  className="inline-flex items-center justify-center px-6 sm:px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center"
                 >
                   <PlayIcon className="h-5 w-5 mr-2 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Book a 30-min Demo</span>
+                  <span className="text-sm sm:text-base">Book a 30-min Demo</span>
                 </Link>
                 <Link
                   href="/login"
-                  className="inline-flex items-center justify-center px-6 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold rounded-lg border border-gray-200 transition-all duration-200 shadow-sm hover:shadow-md min-w-[280px]"
+                  className="inline-flex items-center justify-center px-4 sm:px-6 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold rounded-lg border border-gray-200 transition-all duration-200 shadow-sm hover:shadow-md text-center"
                 >
-                  <span className="whitespace-nowrap">Start Now – 30-Day Money-Back Guarantee</span>
+                  <span className="text-sm sm:text-base">Start Now – 30-Day Money-Back Guarantee</span>
                   <ArrowRightIcon className="h-5 w-5 ml-2 flex-shrink-0" />
                 </Link>
               </div>
               
               {/* ROI Indicators */}
-              <div className="grid grid-cols-2 xl:grid-cols-4 gap-6 lg:gap-8 max-w-4xl mx-auto lg:mx-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 max-w-4xl mx-auto lg:mx-0">
                 <div className="text-center lg:text-left bg-blue-50 rounded-xl p-4 border border-blue-100">
                   <div className="font-bold text-2xl text-blue-600 mb-1">2x faster</div>
                   <div className="text-gray-600 text-sm font-medium">sales presentations</div>
@@ -265,7 +333,7 @@ export default function Home() {
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid lg:grid-cols-3 gap-8 lg:gap-6">
+          <div className="grid md:grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-6">
             {/* Core Plan */}
             <div className="relative bg-white rounded-2xl border border-gray-200 p-8 shadow-sm hover:shadow-lg transition-all duration-300">
               <div className="mb-8">
@@ -309,7 +377,7 @@ export default function Home() {
             </div>
 
             {/* Pro Plan - Most Popular */}
-            <div className="relative bg-white rounded-2xl border-2 border-blue-500 p-8 shadow-xl transform scale-105">
+            <div className="relative bg-white rounded-2xl border-2 border-blue-500 p-8 shadow-xl lg:transform lg:scale-105">
               <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                 <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full text-sm font-semibold shadow-lg">
                   ⭐ Most Popular
