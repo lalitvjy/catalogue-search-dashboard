@@ -6,9 +6,9 @@ export interface R2UploadResult {
 }
 
 function createR2Client() {
-  const accountId = process.env.R2_ACCOUNT_ID
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
+  const accountId = process.env.R2_ACCOUNT_ID || "ee99e9f65c6e9111533bc891baa8663b"
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID || "e13682d284143fcdcd92a3f615a6196a"
+  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY || "595b16114baebd6b7a1533e941e3ac2e6bc0d063d1f9cf0f95f366398e201840"
   const endpoint = accountId ? `https://${accountId}.r2.cloudflarestorage.com` : process.env.R2_ENDPOINT
 
   if (!endpoint || !accessKeyId || !secretAccessKey) {
@@ -42,7 +42,7 @@ export async function uploadBufferToR2(params: {
     ACL: 'public-read'
   }))
 
-  const base = params.publicBaseUrl || process.env.R2_PUBLIC_BASE_URL
+  const base = params.publicBaseUrl || process.env.R2_PUBLIC_BASE_URL || "https://pub-2035eb04f1c6419f9f5608d56b4df5d8.r2.dev"
   const url = base ? `${base.replace(/\/$/, '')}/${params.key}` : `${process.env.R2_CDN_BASE_URL?.replace(/\/$/, '') || ''}/${params.key}`
 
   return { url, key: params.key }
