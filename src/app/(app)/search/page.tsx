@@ -46,7 +46,67 @@ export default function SearchPage() {
   const [triggerSearch, setTriggerSearch] = useState(0)
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
   const [resultSize, setResultSize] = useState<number>(20)
-  const { createSearchInteraction } = useSearchInteractions()
+  const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
+  const handleToggleInteraction = async (
+    skuId: string,
+    skuCode: string | undefined,
+    fileName: string | undefined,
+    imageUrl: string | undefined,
+    interactionType: 'LIKE' | 'DISLIKE',
+    similarityScore: number,
+    resultPosition: number
+  ) => {
+    try {
+      if (!currentSearchInteraction) {
+        if (!uploadedImage || results.length === 0) {
+          return
+        }
+        let finalImageUrl = uploadedImage
+        try {
+          if (uploadedImage.startsWith('blob:')) {
+            const response = await fetch(uploadedImage)
+            const blob = await response.blob()
+            const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
+            const formData = new FormData()
+            formData.append('file', file)
+            const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: formData })
+            if (uploadRes.ok) {
+              const data = await uploadRes.json()
+              finalImageUrl = data.url || finalImageUrl
+            }
+          } else if (/^https?:\/\//i.test(uploadedImage)) {
+            const imageResp = await fetch(uploadedImage)
+            if (imageResp.ok) {
+              const blob = await imageResp.blob()
+              const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
+              const formData = new FormData()
+              formData.append('file', file)
+              const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: formData })
+              if (uploadRes.ok) {
+                const data = await uploadRes.json()
+                finalImageUrl = data.url || finalImageUrl
+              }
+            }
+          }
+        } catch {}
+
+        const newId = await createSearchInteraction({
+          inputImageUrl: finalImageUrl,
+          searchParams: {
+            scoreThreshold: filters.confidence_min || 0.1,
+            diamondWtMin: filters.diamond_wt_min,
+            diamondWtMax: filters.diamond_wt_max,
+            ctrstoneWtMin: filters.ctrstone_wt_min,
+            ctrstoneWtMax: filters.ctrstone_wt_max,
+            resultSize
+          },
+          totalResults: results.length
+        })
+        return toggleInteraction(skuId, skuCode, fileName, imageUrl, interactionType, similarityScore, resultPosition, newId)
+      }
+      return toggleInteraction(skuId, skuCode, fileName, imageUrl, interactionType, similarityScore, resultPosition)
+    } catch {}
+  }
 
   // Check authentication status and brand access
   useEffect(() => {
@@ -196,6 +256,7 @@ export default function SearchPage() {
           },
           totalResults: searchResults.length
         })
+        console.log("Creating search interactions!!!!!!------->");
       } catch (error) {
         console.error('Failed to create search interaction:', error)
         // Don't show error to user for this background operation
@@ -383,7 +444,13 @@ export default function SearchPage() {
               </div>
             </div>
             
-            <ResultsGrid results={filteredResults} searching={searching} onFindSimilar={handleFindSimilar} />
+            <ResultsGrid 
+              results={filteredResults} 
+              searching={searching} 
+              onFindSimilar={handleFindSimilar}
+              onToggleInteraction={handleToggleInteraction}
+              getInteractionForSku={getInteraction}
+            />
           </div>
         </div>
 
@@ -439,7 +506,13 @@ export default function SearchPage() {
                 </div>
               </div>
               
-              <ResultsGrid results={filteredResults} searching={searching} onFindSimilar={handleFindSimilar} />
+              <ResultsGrid 
+                results={filteredResults} 
+                searching={searching} 
+                onFindSimilar={handleFindSimilar}
+                onToggleInteraction={handleToggleInteraction}
+                getInteractionForSku={getInteraction}
+              />
             </div>
           </div>
         </div>

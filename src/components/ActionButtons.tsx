@@ -37,7 +37,7 @@ export default function ActionButtons({
         onClick={handleLike}
         className={`p-1.5 rounded-md transition-colors ${
           likeState === 'liked'
-            ? 'text-red-600 hover:text-red-700 bg-red-50'
+            ? 'text-green-600 hover:text-green-700 bg-green-50'
             : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
         }`}
         title={likeState === 'liked' ? 'Unlike' : 'Like this product'}

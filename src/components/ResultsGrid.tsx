@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react'
 import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
-import { useSearchInteractions } from '@/hooks/useSearchInteractions'
 
 interface SearchResult {
   sku_id: string
@@ -18,16 +17,26 @@ interface ResultsGridProps {
   results: SearchResult[]
   searching?: boolean
   onFindSimilar?: (imageUrl: string) => void
+  onToggleInteraction?: (
+    skuId: string,
+    skuCode: string | undefined,
+    fileName: string | undefined,
+    imageUrl: string | undefined,
+    interactionType: 'LIKE' | 'DISLIKE',
+    similarityScore: number,
+    resultPosition: number
+  ) => Promise<void> | void
+  getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
 }
 
 const ITEMS_PER_PAGE = 20
 
-export default function ResultsGrid({ results, searching, onFindSimilar }: ResultsGridProps) {
+export default function ResultsGrid({ results, searching, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
   const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
-  const { toggleInteraction, getInteraction } = useSearchInteractions()
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null)
 
   // Reset to first page when results change
   useEffect(() => {
@@ -66,6 +75,45 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
   const totalPages = Math.ceil(sortedResults.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const paginatedResults = sortedResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
+  const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToast({ message, type })
+    window.clearTimeout((showToast as unknown as { _t?: number })._t)
+    ;(showToast as unknown as { _t?: number })._t = window.setTimeout(() => setToast(null), 1800)
+  }
+
+  const performToggle = async (
+    result: SearchResult,
+    interactionType: 'LIKE' | 'DISLIKE',
+    position: number
+  ) => {
+    if (!onToggleInteraction) return
+    const before = getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined
+    try {
+      await onToggleInteraction(
+        result.sku_id,
+        result.sku_code,
+        result.file_name,
+        result.image_url,
+        interactionType,
+        result.confidence,
+        position
+      )
+      const after = getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined
+      const name = result.sku_code || result.file_name || 'item'
+      if (before === interactionType && after === undefined) {
+        showToast(`image ${interactionType === 'LIKE' ? 'like' : 'dislike'} removed: ${name}`, 'info')
+      } else if (interactionType === 'LIKE') {
+        showToast(`image liked: ${name}`, 'success')
+      } else if (interactionType === 'DISLIKE') {
+        showToast(`image disliked: ${name}`, 'success')
+      } else {
+        showToast(`image interaction updated: ${name}`, 'success')
+      }
+    } catch (e) {
+      showToast('Failed to save interaction', 'error')
+    }
+  }
 
   if (searching) {
     return (
@@ -188,19 +236,9 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
             {/* Action Buttons */}
             <div className="flex justify-start">
               <ActionButtons 
-                currentInteraction={getInteraction(result.sku_id)}
-                onLike={() => toggleInteraction(
-                  result.sku_id, 
-                  'LIKE', 
-                  result.confidence, 
-                  startIndex + index + 1
-                )}
-                onDislike={() => toggleInteraction(
-                  result.sku_id, 
-                  'DISLIKE', 
-                  result.confidence, 
-                  startIndex + index + 1
-                )}
+              currentInteraction={getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined}
+              onLike={() => performToggle(result, 'LIKE', startIndex + index + 1)}
+              onDislike={() => performToggle(result, 'DISLIKE', startIndex + index + 1)}
               />
             </div>
             
@@ -304,6 +342,16 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
               }
             })()}
           </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-md shadow-lg text-sm ${
+          toast.type === 'success' ? 'bg-green-600 text-white' : toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-800 text-white'
+        }`}
+        >
+          {toast.message}
         </div>
       )}
     </div>

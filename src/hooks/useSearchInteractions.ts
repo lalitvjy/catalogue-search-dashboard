@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 
 interface SearchInteraction {
   id: string
@@ -10,9 +10,12 @@ interface SearchInteraction {
 export const useSearchInteractions = () => {
   const [currentSearchInteraction, setCurrentSearchInteraction] = 
     useState<SearchInteraction | null>(null)
-  const [interactions, setInteractions] = useState<Map<string, 'LIKE' | 'DISLIKE'>>(
-    new Map()
-  )
+  const [interactions, setInteractions] = useState<Map<string, 'LIKE' | 'DISLIKE'>>(new Map())
+  const interactionsRef = useRef(interactions)
+
+  useEffect(() => {
+    interactionsRef.current = interactions
+  }, [interactions])
 
   // Create search interaction when search is performed
   const createSearchInteraction = useCallback(async (data: {
@@ -30,6 +33,7 @@ export const useSearchInteractions = () => {
       if (!response.ok) {
         throw new Error('Failed to create search interaction')
       }
+      console.log("WHEN ARE WE HERE?????");
       
       const result = await response.json()
       setCurrentSearchInteraction({ 
@@ -52,54 +56,71 @@ export const useSearchInteractions = () => {
   // Handle like/dislike actions
   const toggleInteraction = useCallback(async (
     skuId: string,
+    skuCode: string | undefined,
+    fileName: string | undefined,
+    imageUrl: string | undefined,
     interactionType: 'LIKE' | 'DISLIKE',
     similarityScore: number,
-    resultPosition: number
+    resultPosition: number,
+    searchInteractionIdOverride?: string
   ) => {
-    if (!currentSearchInteraction) {
+    const effectiveSearchInteractionId = searchInteractionIdOverride || currentSearchInteraction?.id
+    if (!effectiveSearchInteractionId) {
       console.error('No active search interaction')
       return
     }
 
+    // Determine desired next state based on current state (from ref to avoid staleness)
+    const prevInteraction = interactionsRef.current.get(skuId)
+    const isRemoving = prevInteraction === interactionType
+    const optimisticNext: 'LIKE' | 'DISLIKE' | undefined = isRemoving ? undefined : interactionType
+
+    // Optimistically apply UI state
+    const previousMapSnapshot = interactionsRef.current
+    setInteractions(prev => {
+      const next = new Map(prev)
+      if (optimisticNext) next.set(skuId, optimisticNext)
+      else next.delete(skuId)
+      return next
+    })
+
     try {
-      const currentInteraction = interactions.get(skuId)
-      
-      // If clicking the same type, remove the interaction
-      if (currentInteraction === interactionType) {
-        await fetch(`/api/interaction-items?searchInteractionId=${currentSearchInteraction.id}&skuId=${skuId}`, {
-          method: 'DELETE'
-        })
-        
-        setInteractions(prev => {
-          const newMap = new Map(prev)
-          newMap.delete(skuId)
-          return newMap
-        })
+      if (isRemoving) {
+        const query = new URLSearchParams({ searchInteractionId: effectiveSearchInteractionId })
+        if (skuId) query.set('skuId', skuId)
+        if (skuCode) query.set('skuCode', skuCode)
+        await fetch(`/api/interaction-items?${query.toString()}`, { method: 'DELETE' })
       } else {
-        // Create or update interaction
         const response = await fetch('/api/interaction-items', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            searchInteractionId: currentSearchInteraction.id,
+            searchInteractionId: effectiveSearchInteractionId,
             skuId,
+            skuCode,
+            fileName,
+            imageUrl,
             interactionType,
             similarityScore,
             resultPosition
           })
         })
-
         if (!response.ok) {
-          throw new Error('Failed to save interaction')
+          let message = 'Failed to save interaction'
+          try {
+            const err = await response.json()
+            if (err?.error) message = message + `: ${err.error}`
+          } catch {}
+          throw new Error(message)
         }
-        
-        setInteractions(prev => new Map(prev).set(skuId, interactionType))
       }
     } catch (error) {
+      // Roll back optimistic update on failure
+      setInteractions(previousMapSnapshot)
       console.error('Failed to toggle interaction:', error)
       // You might want to show a toast or error message to the user here
     }
-  }, [currentSearchInteraction, interactions])
+  }, [currentSearchInteraction])
 
   const getInteraction = useCallback((skuId: string) => {
     return interactions.get(skuId)
