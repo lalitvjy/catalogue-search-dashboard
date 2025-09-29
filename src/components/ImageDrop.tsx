@@ -223,6 +223,21 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       // Start the search process
       onSearching?.(true)
 
+      // Upload the input URL image to R2 via server to avoid CORS
+      try {
+        const uploadRes = await fetch('/api/upload/image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: url })
+        })
+        if (uploadRes.ok) {
+          const data = await uploadRes.json()
+          onImageUpload(data.url || url)
+        }
+      } catch (e) {
+        console.warn('R2 upload skipped for URL image:', e)
+      }
+
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
       
@@ -447,6 +462,19 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setCrop(undefined) // Reset crop area for new image
       setUploadProgress(30) // Image loaded
       
+      // Upload original file to R2 early, so we can log a stable URL
+      try {
+        const fd = new FormData()
+        fd.append('file', file, file.name || 'image.jpg')
+        const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: fd })
+        if (uploadRes.ok) {
+          const data = await uploadRes.json()
+          onImageUpload(data.url || tempUrl)
+        }
+      } catch (e) {
+        console.warn('R2 upload skipped for file image:', e)
+      }
+
       // Create form data for our API
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')
@@ -632,6 +660,19 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       onImageUpload(tempUrl)
       setCrop(undefined) // Reset crop area for new image
       
+      // Upload original clipboard file to R2 early to obtain stable URL
+      try {
+        const fd = new FormData()
+        fd.append('file', file, file.name || 'clipboard-image.jpg')
+        const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: fd })
+        if (uploadRes.ok) {
+          const data = await uploadRes.json()
+          onImageUpload(data.url || tempUrl)
+        }
+      } catch (e) {
+        console.warn('R2 upload skipped for clipboard image:', e)
+      }
+
       // Create form data for our API
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')

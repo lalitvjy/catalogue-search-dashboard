@@ -151,8 +151,41 @@ export default function SearchPage() {
     // Create search interaction when we have search results and an uploaded image
     if (searchResults.length > 0 && uploadedImage) {
       try {
+        // Ensure the input image is uploaded to R2 via our API
+        let finalImageUrl = uploadedImage
+        try {
+          if (uploadedImage.startsWith('blob:')) {
+            const response = await fetch(uploadedImage)
+            const blob = await response.blob()
+            const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
+            const formData = new FormData()
+            formData.append('file', file)
+            const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: formData })
+            if (uploadRes.ok) {
+              const data = await uploadRes.json()
+              finalImageUrl = data.url || finalImageUrl
+            }
+          } else if (/^https?:\/\//i.test(uploadedImage)) {
+            // For external URLs, fetch and reupload to R2 for persistence
+            const imageResp = await fetch(uploadedImage)
+            if (imageResp.ok) {
+              const blob = await imageResp.blob()
+              const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
+              const formData = new FormData()
+              formData.append('file', file)
+              const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: formData })
+              if (uploadRes.ok) {
+                const data = await uploadRes.json()
+                finalImageUrl = data.url || finalImageUrl
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to upload input image to R2:', e)
+        }
+
         await createSearchInteraction({
-          inputImageUrl: uploadedImage,
+          inputImageUrl: finalImageUrl,
           searchParams: {
             scoreThreshold: filters.confidence_min || 0.1,
             diamondWtMin: filters.diamond_wt_min,
