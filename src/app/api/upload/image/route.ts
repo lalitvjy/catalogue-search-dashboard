@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       const { imageBase64, fileName, imageUrl } = body
       console.log('[R2 Upload] JSON mode, fileName:', fileName, 'imageUrl provided:', !!imageUrl)
 
-      const bucket = process.env.R2_BUCKET_NAME
+      const bucket = process.env.R2_BUCKET_NAME || "bucket-for-development-and-testing"
       if (!bucket) return NextResponse.json({ error: 'R2_BUCKET_NAME not set' }, { status: 500 })
 
       if (imageUrl) {
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
 
-    const bucket = process.env.R2_BUCKET_NAME
+    const bucket = process.env.R2_BUCKET_NAME || "bucket-for-development-and-testing"
     if (!bucket) return NextResponse.json({ error: 'R2_BUCKET_NAME not set' }, { status: 500 })
 
     const key = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
