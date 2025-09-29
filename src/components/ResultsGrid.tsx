@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react'
+import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
 
 interface SearchResult {
@@ -16,11 +17,21 @@ interface ResultsGridProps {
   results: SearchResult[]
   searching?: boolean
   onFindSimilar?: (imageUrl: string) => void
+  onToggleInteraction?: (
+    skuId: string,
+    skuCode: string | undefined,
+    fileName: string | undefined,
+    imageUrl: string | undefined,
+    interactionType: 'LIKE' | 'DISLIKE',
+    similarityScore: number,
+    resultPosition: number
+  ) => Promise<void> | void
+  getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
 }
 
 const ITEMS_PER_PAGE = 20
 
-export default function ResultsGrid({ results, searching, onFindSimilar }: ResultsGridProps) {
+export default function ResultsGrid({ results, searching, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
@@ -63,6 +74,30 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
   const totalPages = Math.ceil(sortedResults.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const paginatedResults = sortedResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
+  
+
+  const performToggle = async (
+    result: SearchResult,
+    interactionType: 'LIKE' | 'DISLIKE',
+    position: number
+  ) => {
+    if (!onToggleInteraction) return
+    try {
+      await onToggleInteraction(
+        result.sku_id,
+        result.sku_code,
+        result.file_name,
+        result.image_url,
+        interactionType,
+        result.confidence,
+        position
+      )
+      // Intentionally no popup/toast notifications after like/dislike
+    } catch {
+      // Intentionally silent on error to avoid popup notifications
+    }
+  }
 
   if (searching) {
     return (
@@ -140,6 +175,22 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
                 </span>
               </div>
             </div>
+
+            {/* Find Similar Icon Button */}
+            {onFindSimilar && (
+              <div className="absolute top-2 left-2">
+                <button
+                  onClick={() => onFindSimilar(result.image_url)}
+                  className="p-1.5 rounded-md transition-colors text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  title="Find similar products"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
+              </div>
+            )}
+
           </div>
           
           {/* Content Section - Flex to push button to bottom */}
@@ -147,8 +198,11 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
             {/* Product Info Row */}
             <div className="flex items-start justify-between gap-2 flex-1">
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-sm text-gray-900 break-words mb-1" title={result.sku_code}>
-                  {result.sku_code}
+                <div className="flex items-center justify-between mb-1">
+                  <div className="font-semibold text-sm text-gray-900 break-words" title={result.sku_code}>
+                    {result.sku_code}
+                  </div>
+                  <CopySku skuCode={result.sku_code} />
                 </div>
                 {/* Description - Always show for consistent layout */}
                 <div className="text-xs text-gray-700 mb-2 min-h-[2.5rem] break-words">
@@ -161,26 +215,17 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
                   </span>
                 ) : null}
               </div>
-              
-              {/* Copy Action */}
-              <div className="flex-shrink-0 mt-0.5">
-                <CopySku skuCode={result.sku_code} />
-              </div>
             </div>
             
-            {/* Primary Action - Find Similar - Always at bottom */}
-            {onFindSimilar && (
-              <button
-                onClick={() => onFindSimilar(result.image_url)}
-                className="w-full py-2 px-1.5 sm:px-2 bg-white text-blue-600 border border-blue-600 text-xs sm:text-sm font-medium rounded-lg hover:bg-blue-50 active:bg-blue-100 transition-colors duration-150 flex items-center justify-center space-x-0.5 sm:space-x-1 shadow-sm whitespace-nowrap min-h-[32px] mt-auto"
-                title="Find similar products"
-              >
-                <svg className="w-2.5 h-2.5 sm:w-3.5 sm:h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <span className="text-[10px] sm:text-xs md:text-sm font-medium leading-tight">Find Similar</span>
-              </button>
-            )}
+            {/* Action Buttons */}
+            <div className="flex justify-start">
+              <ActionButtons 
+              currentInteraction={getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined}
+              onLike={() => performToggle(result, 'LIKE', startIndex + index + 1)}
+              onDislike={() => performToggle(result, 'DISLIKE', startIndex + index + 1)}
+              />
+            </div>
+            
           </div>
         </div>
           )
@@ -283,6 +328,8 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
           </div>
         </div>
       )}
+
+      
     </div>
   )
 }
