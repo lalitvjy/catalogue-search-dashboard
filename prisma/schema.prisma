@@ -9,13 +9,14 @@ datasource db {
 }
 
 model Brand {
-  id               String  @id @default(cuid())
-  name             String
-  slug             String  @unique
-  qdrantCollection String
-  embedding_model  String? @default("dinov2")
-  skus             Sku[]
-  users            User[]
+  id                 String              @id @default(cuid())
+  name               String
+  slug               String              @unique
+  qdrantCollection   String
+  embedding_model    String?             @default("dinov2")
+  skus               Sku[]
+  users              User[]
+  searchInteractions SearchInteraction[]
 }
 
 model User {
@@ -30,6 +31,7 @@ model User {
   name                String?
   passwordResetTokens PasswordResetToken[]
   brand               Brand?               @relation(fields: [brandId], references: [id])
+  searchInteractions  SearchInteraction[]
 }
 
 enum UserRole {
@@ -52,17 +54,18 @@ model PasswordResetToken {
 }
 
 model Sku {
-  id            String    @id @default(cuid())
-  brandId       String
-  skuCode       String
-  fileName      String
-  imageUrl      String
-  title         String?
-  qdrantPointId String?   @db.Uuid
-  metadata      Json?
-  processedAt   DateTime? @db.Timestamp(6)
-  brand         Brand     @relation(fields: [brandId], references: [id])
-  attr          SkuAttr?
+  id               String            @id @default(cuid())
+  brandId          String
+  skuCode          String
+  fileName         String
+  imageUrl         String
+  title            String?
+  qdrantPointId    String?           @db.Uuid
+  metadata         Json?
+  processedAt      DateTime?         @db.Timestamp(6)
+  brand            Brand             @relation(fields: [brandId], references: [id])
+  attr             SkuAttr?
+  interactionItems InteractionItem[]
 
   @@index([brandId, skuCode], map: "brand_sku")
 }
@@ -84,4 +87,45 @@ model SearchLog {
   tookMs    Int
   filters   Json?
   createdAt DateTime @default(now())
+}
+
+model SearchInteraction {
+  id              String            @id @default(cuid())
+  userId          String
+  brandId         String
+  inputImageUrl   String           // URL of uploaded search image
+  inputImageHash  String?          // Optional: for deduplication
+  searchParams    Json?            // Store search parameters (threshold, topK, etc.)
+  totalResults    Int?             // How many results were returned
+  createdAt       DateTime         @default(now())
+  
+  user            User             @relation(fields: [userId], references: [id])
+  brand           Brand            @relation(fields: [brandId], references: [id])
+  interactions    InteractionItem[]
+  
+  @@index([userId])
+  @@index([brandId])
+  @@index([createdAt])
+}
+
+model InteractionItem {
+  id                   String             @id @default(cuid())
+  searchInteractionId  String
+  skuId                String
+  interactionType      InteractionType
+  similarityScore      Float              // Similarity when shown to user
+  resultPosition       Int                // Position in search results
+  createdAt            DateTime           @default(now())
+  
+  searchInteraction    SearchInteraction  @relation(fields: [searchInteractionId], references: [id], onDelete: Cascade)
+  sku                  Sku               @relation(fields: [skuId], references: [id])
+  
+  @@unique([searchInteractionId, skuId])
+  @@index([skuId])
+  @@index([interactionType])
+}
+
+enum InteractionType {
+  LIKE
+  DISLIKE
 }

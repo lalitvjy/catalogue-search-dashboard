@@ -1,33 +1,33 @@
 'use client'
-import { useState } from 'react'
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline'
 import { HandThumbUpIcon as HandThumbUpSolid, HandThumbDownIcon as HandThumbDownSolid } from '@heroicons/react/24/solid'
 
 interface ActionButtonsProps {
   className?: string
+  currentInteraction?: 'LIKE' | 'DISLIKE' | null
   onLike?: () => void
   onDislike?: () => void
 }
 
 type LikeState = 'none' | 'liked' | 'disliked'
 
-export default function ActionButtons({ className = '', onLike, onDislike }: ActionButtonsProps) {
-  const [likeState, setLikeState] = useState<LikeState>('none')
+export default function ActionButtons({ 
+  className = '', 
+  currentInteraction,
+  onLike, 
+  onDislike 
+}: ActionButtonsProps) {
+  // Convert external interaction state to internal state
+  const likeState: LikeState = 
+    currentInteraction === 'LIKE' ? 'liked' : 
+    currentInteraction === 'DISLIKE' ? 'disliked' : 'none'
 
   const handleLike = () => {
-    const newState = likeState === 'liked' ? 'none' : 'liked'
-    setLikeState(newState)
-    if (newState === 'liked') {
-      onLike?.()
-    }
+    onLike?.()
   }
 
   const handleDislike = () => {
-    const newState = likeState === 'disliked' ? 'none' : 'disliked'
-    setLikeState(newState)
-    if (newState === 'disliked') {
-      onDislike?.()
-    }
+    onDislike?.()
   }
 
   return (

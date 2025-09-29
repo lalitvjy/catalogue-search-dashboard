@@ -6,6 +6,7 @@ import ImageDrop from '@/components/ImageDrop'
 import ResultsGrid from '@/components/ResultsGrid'
 import FiltersPanel from '@/components/FiltersPanel'
 import LogoutModal from '@/components/LogoutModal'
+import { useSearchInteractions } from '@/hooks/useSearchInteractions'
 
 interface ExtendedSession {
   brandId?: string
@@ -45,6 +46,7 @@ export default function SearchPage() {
   const [triggerSearch, setTriggerSearch] = useState(0)
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
   const [resultSize, setResultSize] = useState<number>(20)
+  const { createSearchInteraction } = useSearchInteractions()
 
   // Check authentication status and brand access
   useEffect(() => {
@@ -143,8 +145,30 @@ export default function SearchPage() {
     }
   }
 
-  const handleSearchResults = (searchResults: SearchResult[]) => {
+  const handleSearchResults = async (searchResults: SearchResult[]) => {
     setResults(searchResults)
+    
+    // Create search interaction when we have search results and an uploaded image
+    if (searchResults.length > 0 && uploadedImage) {
+      try {
+        await createSearchInteraction({
+          inputImageUrl: uploadedImage,
+          searchParams: {
+            scoreThreshold: filters.confidence_min || 0.1,
+            diamondWtMin: filters.diamond_wt_min,
+            diamondWtMax: filters.diamond_wt_max,
+            ctrstoneWtMin: filters.ctrstone_wt_min,
+            ctrstoneWtMax: filters.ctrstone_wt_max,
+            resultSize
+          },
+          totalResults: searchResults.length
+        })
+      } catch (error) {
+        console.error('Failed to create search interaction:', error)
+        // Don't show error to user for this background operation
+      }
+    }
+    
     // Scroll to top when new results are loaded
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }

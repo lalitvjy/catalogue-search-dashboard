@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
+import { useSearchInteractions } from '@/hooks/useSearchInteractions'
 
 interface SearchResult {
   sku_id: string
@@ -26,6 +27,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
   const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
+  const { toggleInteraction, getInteraction } = useSearchInteractions()
 
   // Reset to first page when results change
   useEffect(() => {
@@ -186,8 +188,19 @@ export default function ResultsGrid({ results, searching, onFindSimilar }: Resul
             {/* Action Buttons */}
             <div className="flex justify-start">
               <ActionButtons 
-                onLike={() => console.log('Liked:', result.sku_code)}
-                onDislike={() => console.log('Disliked:', result.sku_code)}
+                currentInteraction={getInteraction(result.sku_id)}
+                onLike={() => toggleInteraction(
+                  result.sku_id, 
+                  'LIKE', 
+                  result.confidence, 
+                  startIndex + index + 1
+                )}
+                onDislike={() => toggleInteraction(
+                  result.sku_id, 
+                  'DISLIKE', 
+                  result.confidence, 
+                  startIndex + index + 1
+                )}
               />
             </div>
             
