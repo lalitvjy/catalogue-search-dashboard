@@ -36,7 +36,6 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
   const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null)
 
   // Reset to first page when results change
   useEffect(() => {
@@ -76,11 +75,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const paginatedResults = sortedResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
-  const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
-    setToast({ message, type })
-    window.clearTimeout((showToast as unknown as { _t?: number })._t)
-    ;(showToast as unknown as { _t?: number })._t = window.setTimeout(() => setToast(null), 1800)
-  }
+  
 
   const performToggle = async (
     result: SearchResult,
@@ -88,7 +83,6 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
     position: number
   ) => {
     if (!onToggleInteraction) return
-    const before = getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined
     try {
       await onToggleInteraction(
         result.sku_id,
@@ -99,19 +93,9 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
         result.confidence,
         position
       )
-      const after = getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined
-      const name = result.sku_code || result.file_name || 'item'
-      if (before === interactionType && after === undefined) {
-        showToast(`image ${interactionType === 'LIKE' ? 'like' : 'dislike'} removed: ${name}`, 'info')
-      } else if (interactionType === 'LIKE') {
-        showToast(`image liked: ${name}`, 'success')
-      } else if (interactionType === 'DISLIKE') {
-        showToast(`image disliked: ${name}`, 'success')
-      } else {
-        showToast(`image interaction updated: ${name}`, 'success')
-      }
-    } catch (e) {
-      showToast('Failed to save interaction', 'error')
+      // Intentionally no popup/toast notifications after like/dislike
+    } catch {
+      // Intentionally silent on error to avoid popup notifications
     }
   }
 
@@ -345,15 +329,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
         </div>
       )}
 
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-md shadow-lg text-sm ${
-          toast.type === 'success' ? 'bg-green-600 text-white' : toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-800 text-white'
-        }`}
-        >
-          {toast.message}
-        </div>
-      )}
+      
     </div>
   )
 }
