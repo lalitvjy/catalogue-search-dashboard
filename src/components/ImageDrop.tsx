@@ -1,7 +1,10 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import ReactCrop, { type Crop } from 'react-image-crop'
 import { useSession } from 'next-auth/react'
+import CropOverlay from '@/components/CropOverlay'
+import { useImageStore } from '@/lib/image-store'
+import { cropFromBlob } from '@/lib/crop'
+import type { CropSelection as LibCropSelection } from '@/lib/crop'
 
 interface ExtendedSession {
   brandId?: string
@@ -41,9 +44,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
   const [imageUrl, setImageUrl] = useState('')
   const [searchMode, setSearchMode] = useState<'upload' | 'url' | 'clipboard'>('upload')
   const [clipboardReady, setClipboardReady] = useState(false)
-  const [crop, setCrop] = useState<Crop | undefined>()
-  const imgRef = useRef<HTMLImageElement | null>(null)
   const cropTimeoutRef = useRef<number | null>(null)
+  const { setFromFile, setFromUrl, originalBlob } = useImageStore()
 
   const searchWithFile = async (file: File) => {
     try {
@@ -110,57 +112,30 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     }
   }
 
-  const getCroppedBlob = async (sourceUrl: string, cropRect: Crop): Promise<Blob> => {
-    const sourceBlob = sourceUrl.startsWith('blob:')
-      ? await (await fetch(sourceUrl)).blob()
-      : await (await fetch(sourceUrl, { cache: 'no-store' })).blob()
-
-    const imageObjectUrl = URL.createObjectURL(sourceBlob)
-    try {
-      const imageEl = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image()
-        img.onload = () => resolve(img)
-        img.onerror = reject
-        img.src = imageObjectUrl
-      })
-
-      const displayedWidth = imgRef.current?.clientWidth || imageEl.naturalWidth
-      const displayedHeight = imgRef.current?.clientHeight || imageEl.naturalHeight
-      const scaleX = imageEl.naturalWidth / Math.max(1, displayedWidth)
-      const scaleY = imageEl.naturalHeight / Math.max(1, displayedHeight)
-
-      const sx = Math.max(0, Math.floor((cropRect.x || 0) * scaleX))
-      const sy = Math.max(0, Math.floor((cropRect.y || 0) * scaleY))
-      const sWidth = Math.max(1, Math.floor((cropRect.width || 0) * scaleX))
-      const sHeight = Math.max(1, Math.floor((cropRect.height || 0) * scaleY))
-
-      const canvas = document.createElement('canvas')
-      canvas.width = sWidth
-      canvas.height = sHeight
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Canvas not supported')
-      ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(imageEl, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight)
-
-      const blob: Blob = await new Promise((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas export failed'))), 'image/jpeg', 0.92)
-      })
-      return blob
-    } finally {
-      URL.revokeObjectURL(imageObjectUrl)
-    }
-  }
-
-  const handleCropComplete = (c: Crop) => {
+  const handleCropComplete = (selection: LibCropSelection) => {
     if (cropTimeoutRef.current) {
       window.clearTimeout(cropTimeoutRef.current)
       cropTimeoutRef.current = null
     }
     cropTimeoutRef.current = window.setTimeout(async () => {
-      if (!uploadedImage || !c || (c.width ?? 0) < 5 || (c.height ?? 0) < 5) return
+      if (!uploadedImage || !selection) return
       if (uploading) return
       try {
-        const blob = await getCroppedBlob(uploadedImage, c)
+        let sourceBlob = originalBlob
+        if (!sourceBlob) {
+          const fetched = await fetch(uploadedImage)
+          sourceBlob = await fetched.blob()
+        }
+        const tempUrl = URL.createObjectURL(sourceBlob)
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const i = new Image()
+          i.onload = () => resolve(i)
+          i.onerror = reject
+          i.src = tempUrl
+        })
+        URL.revokeObjectURL(tempUrl)
+
+        const blob = await cropFromBlob(sourceBlob, selection, img.naturalWidth, img.naturalHeight)
         const file = new File([blob], 'crop.jpg', { type: blob.type || 'image/jpeg' })
         await searchWithFile(file)
       } catch (e) {
@@ -217,8 +192,11 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setUploading(true)
       setError(null)
 
-      // Set the URL for display (will show as a placeholder)
+      // Set the URL for display and seed store by fetching once
       onImageUpload(url)
+      try {
+        await setFromUrl(url)
+      } catch {}
       
       // Start the search process
       onSearching?.(true)
@@ -454,12 +432,10 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     setUploadProgress(10) // Initial progress
     
     try {
-      // Create a temporary URL for display FIRST, before API call
+      // Seed global store and create a temporary URL for display
+      setFromFile(file)
       const tempUrl = URL.createObjectURL(file)
-      
-      // Set the uploaded image immediately for display via parent callback
       onImageUpload(tempUrl)
-      setCrop(undefined) // Reset crop area for new image
       setUploadProgress(30) // Image loaded
       
       // Upload original file to R2 early, so we can log a stable URL
@@ -578,7 +554,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     setImageUrl('') // Clear URL input
     setSearchMode('upload') // Reset to upload mode
     setClipboardReady(false) // Reset clipboard state
-    setCrop(undefined) // Reset crop area
   }
 
   const handleUrlSearch = async () => {
@@ -595,9 +570,10 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       return
     }
     
-    // Set the image URL for display
     onImageUpload(imageUrl.trim())
-    setCrop(undefined) // Reset crop area for new image
+    try {
+      await setFromUrl(imageUrl.trim())
+    } catch {}
     await searchByUrl(imageUrl.trim())
   }
 
@@ -653,12 +629,9 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     onSearching?.(true)
     
     try {
-      // Create a temporary URL for display FIRST, before API call
+      setFromFile(file)
       const tempUrl = URL.createObjectURL(file)
-      
-      // Set the uploaded image immediately for display via parent callback
       onImageUpload(tempUrl)
-      setCrop(undefined) // Reset crop area for new image
       
       // Upload original clipboard file to R2 early to obtain stable URL
       try {
@@ -758,15 +731,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     return (
       <div className="space-y-4">
         <div className="relative aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 shadow-sm overflow-hidden">
-          <ReactCrop crop={crop} onChange={(c) => setCrop(c)} onComplete={handleCropComplete}>
-            <img
-              src={uploadedImage}
-              alt="Uploaded image"
-              className="w-full h-full object-contain"
-              style={{ aspectRatio: '1 / 1', backgroundColor: '#f3f4f6' }}
-              ref={imgRef}
-            />
-          </ReactCrop>
+          <CropOverlay imageUrl={uploadedImage} onCropEnd={handleCropComplete} />
           <button
             onClick={removeImage}
             className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"

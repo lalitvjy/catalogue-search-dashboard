@@ -36,6 +36,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
   const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
+  const [popupTranslate, setPopupTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
 
   // Reset to first page when results change
   useEffect(() => {
@@ -66,6 +67,54 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
     setShowPopup(false)
     setSelectedResult(null)
   }
+
+  // Ensure popup remains within viewport when scaled
+  useEffect(() => {
+    if (!showPopup || !clickedElement) {
+      setPopupTranslate({ x: 0, y: 0 })
+      return
+    }
+
+    const computeTranslate = () => {
+      const rect = clickedElement.getBoundingClientRect()
+      const scale = 2
+      const margin = 8 // small margin from viewport edges
+
+      // With transform-origin center, visual bounds after scale:
+      const leftVis = rect.left + rect.width * (1 - scale) / 2
+      const rightVis = rect.left + rect.width * (1 + scale) / 2
+      const topVis = rect.top + rect.height * (1 - scale) / 2
+      const bottomVis = rect.top + rect.height * (1 + scale) / 2
+
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+
+      // Compute minimal translation to keep within viewport
+      let translateX = 0
+      let translateY = 0
+
+      if (leftVis < margin) {
+        translateX = margin - leftVis
+      } else if (rightVis > vw - margin) {
+        translateX = (vw - margin) - rightVis
+      }
+
+      if (topVis < margin) {
+        translateY = margin - topVis
+      } else if (bottomVis > vh - margin) {
+        translateY = (vh - margin) - bottomVis
+      }
+
+      setPopupTranslate({ x: translateX, y: translateY })
+    }
+
+    computeTranslate()
+    // Recompute on resize to keep it visible
+    window.addEventListener('resize', computeTranslate)
+    return () => {
+      window.removeEventListener('resize', computeTranslate)
+    }
+  }, [showPopup, clickedElement])
 
   // Sort results by confidence (high to low)
   const sortedResults = [...results].sort((a, b) => b.confidence - a.confidence)
@@ -131,7 +180,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
 
       {/* Results Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {paginatedResults.map((result: SearchResult, index) => { const descText = String(result.description ?? '\u00A0'); const _attrs = result.attributes as { category?: unknown }; const categoryLabel = typeof _attrs.category === 'string' ? (_attrs.category as string) : null; return (
+        {paginatedResults.map((result: SearchResult, index) => { const descText = String(result.description ?? ''); const _attrs = result.attributes as { category?: unknown }; const categoryLabel = typeof _attrs.category === 'string' ? (_attrs.category as string) : null; return (
         <div 
           key={`${result.sku_id}-${index}`} 
           className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 flex flex-col"
@@ -196,18 +245,24 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
           {/* Content Section - Flex to push button to bottom */}
           <div className="px-3 pb-3 flex flex-col flex-1">
             {/* Product Info Row */}
-            <div className="flex items-start justify-between gap-2 flex-1">
+            <div className="flex items-start gap-2 flex-1">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between mb-1">
-                  <div className="font-semibold text-sm text-gray-900 break-words" title={result.sku_code}>
+                <div className="flex items-start gap-2 mb-1">
+                  <div className="flex-1 min-w-0 font-semibold text-sm text-gray-900 break-all" title={result.sku_code}>
                     {result.sku_code}
                   </div>
-                  <CopySku skuCode={result.sku_code} />
+                  <CopySku skuCode={result.sku_code} className="flex-shrink-0 ml-2" />
                 </div>
-                {/* Description - Always show for consistent layout */}
-                <div className="text-xs text-gray-700 mb-2 min-h-[2.5rem] break-words">
-                  {descText}
+                {/* File name - show full, allow wrapping */}
+                <div className="text-[11px] text-gray-500 mb-2 break-all" title={result.file_name}>
+                  {result.file_name}
                 </div>
+                {/* Description - only render if present */}
+                {descText.trim() !== '' ? (
+                  <div className="text-xs text-gray-700 mb-2 break-words">
+                    {descText}
+                  </div>
+                ) : null}
                 {/* Category Tag */}
                 {categoryLabel ? (
                   <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-md font-semibold">
@@ -300,7 +355,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
               top: clickedElement.getBoundingClientRect().top,
               width: clickedElement.getBoundingClientRect().width,
               height: clickedElement.getBoundingClientRect().height,
-              transform: 'scale(2)',
+              transform: `translate(${popupTranslate.x}px, ${popupTranslate.y}px) scale(2)`,
               transformOrigin: 'center center',
               transition: 'all 0.3s ease-out',
               zIndex: 1000
