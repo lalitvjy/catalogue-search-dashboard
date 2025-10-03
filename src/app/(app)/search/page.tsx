@@ -337,6 +337,11 @@ export default function SearchPage() {
     setSkuSearching(true)
     setSearching(true) // Show the main "Searching for similar products..." loader
     setError(null)
+    
+    // Clear the uploaded image and results when SKU search starts
+    setUploadedImage(null)
+    setSearchImageUrl(null)
+    setResults([]) // Clear previous search results immediately
 
     try {
       const response = await fetch('/api/search/sku', {
@@ -364,19 +369,22 @@ export default function SearchPage() {
       if (searchResult.found && searchResult.image_url) {
         console.log('🔍 Triggering URL search with SKU image...')
         setTriggerUrlSearch(searchResult.image_url)
+        // Keep searching state true - it will be reset when URL search completes via handleSearchResults
       } else {
-        // No results found
+        // No results found - only reset searching state here
         setResults([])
         setError(`No product found with SKU: ${skuSearchValue.trim()}`)
+        setSearching(false) // Hide the main loader only when SKU search fails
       }
       
       // Scroll to top when new results are loaded
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while searching')
+      setSearching(false) // Hide the main loader only when SKU search fails
     } finally {
       setSkuSearching(false)
-      setSearching(false) // Hide the main loader
+      // Don't reset searching state here - let it be managed by the URL search completion
     }
   }
 
