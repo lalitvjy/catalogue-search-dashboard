@@ -46,7 +46,22 @@ export default function SearchPage() {
   const [triggerSearch, setTriggerSearch] = useState(0)
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
   const [resultSize, setResultSize] = useState<number>(20)
+  const [skuSearchValue, setSkuSearchValue] = useState<string>('')
+  const [skuSearching, setSkuSearching] = useState<boolean>(false)
+  const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
   const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
+
+  // Reset triggerUrlSearch after it's been used
+  useEffect(() => {
+    if (triggerUrlSearch) {
+      // Reset after a short delay to allow the ImageDrop component to process it
+      const timer = setTimeout(() => {
+        setTriggerUrlSearch(null)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [triggerUrlSearch])
+
   const handleToggleInteraction = async (
     skuId: string,
     skuCode: string | undefined,
@@ -313,6 +328,66 @@ export default function SearchPage() {
     }
   }
 
+  const handleSkuSearch = async () => {
+    if (!skuSearchValue.trim()) {
+      setError('Please enter a SKU value to search')
+      return
+    }
+
+    setSkuSearching(true)
+    setSearching(true) // Show the main "Searching for similar products..." loader
+    setError(null)
+    
+    // Clear the uploaded image and results when SKU search starts
+    setUploadedImage(null)
+    setSearchImageUrl(null)
+    setResults([]) // Clear previous search results immediately
+
+    try {
+      const response = await fetch('/api/search/sku', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sku: skuSearchValue.trim()
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to search by SKU')
+      }
+
+      const searchResult = await response.json()
+      
+      // Console log the image_url as requested
+      if (searchResult.image_url) {
+        console.log('SKU Search Image URL:', searchResult.image_url)
+      }
+      
+      // If SKU was found, trigger URL search using the ImageDrop component
+      if (searchResult.found && searchResult.image_url) {
+        console.log('🔍 Triggering URL search with SKU image...')
+        setTriggerUrlSearch(searchResult.image_url)
+        // Keep searching state true - it will be reset when URL search completes via handleSearchResults
+      } else {
+        // No results found - only reset searching state here
+        setResults([])
+        setError(`No product found with SKU: ${skuSearchValue.trim()}`)
+        setSearching(false) // Hide the main loader only when SKU search fails
+      }
+      
+      // Scroll to top when new results are loaded
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while searching')
+      setSearching(false) // Hide the main loader only when SKU search fails
+    } finally {
+      setSkuSearching(false)
+      // Don't reset searching state here - let it be managed by the URL search completion
+    }
+  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -367,6 +442,7 @@ export default function SearchPage() {
               uploadedImage={uploadedImage}
               triggerSearch={triggerSearch}
               searchImageUrl={searchImageUrl}
+              triggerUrlSearch={triggerUrlSearch}
               scoreThreshold={filters.confidence_min || 0.1}
               diamondWtMin={filters.diamond_wt_min}
               diamondWtMax={filters.diamond_wt_max}
@@ -374,6 +450,44 @@ export default function SearchPage() {
               ctrstoneWtMax={filters.ctrstone_wt_max}
               resultSize={resultSize}
             />
+          </div>
+
+          {/* SKU Search - Full width on mobile/tablet */}
+          <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
+            <h2 className="text-lg font-semibold mb-4 text-gray-800">Search with SKU</h2>
+            <div className="space-y-4">
+              <div>
+                <div className="flex gap-2">
+                  <input
+                    id="sku-search"
+                    type="text"
+                    value={skuSearchValue}
+                    onChange={(e) => setSkuSearchValue(e.target.value)}
+                    placeholder="Enter SKU code..."
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-800 placeholder-gray-500"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSkuSearch()
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={handleSkuSearch}
+                    disabled={skuSearching || !skuSearchValue.trim()}
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {skuSearching ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    ) : (
+                      'Search'
+                    )}
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">
+                Find products by SKU code.
+              </p>
+            </div>
           </div>
     
           <div className="sm:hidden">
@@ -468,6 +582,7 @@ export default function SearchPage() {
                 uploadedImage={uploadedImage}
                 triggerSearch={triggerSearch}
                 searchImageUrl={searchImageUrl}
+                triggerUrlSearch={triggerUrlSearch}
                 scoreThreshold={filters.confidence_min || 0.1}
                 diamondWtMin={filters.diamond_wt_min}
                 diamondWtMax={filters.diamond_wt_max}
@@ -475,6 +590,44 @@ export default function SearchPage() {
                 ctrstoneWtMax={filters.ctrstone_wt_max}
                 resultSize={resultSize}
               />
+            </div>
+
+            {/* SKU Search */}
+            <div className="bg-white p-6 rounded-lg shadow-sm">
+              <h2 className="text-lg font-semibold mb-4 text-gray-800">Search with SKU</h2>
+              <div className="space-y-4">
+                <div>
+                  <div className="flex gap-2">
+                    <input
+                      id="sku-search-desktop"
+                      type="text"
+                      value={skuSearchValue}
+                      onChange={(e) => setSkuSearchValue(e.target.value)}
+                      placeholder="Enter SKU code..."
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-800 placeholder-gray-500"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSkuSearch()
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={handleSkuSearch}
+                      disabled={skuSearching || !skuSearchValue.trim()}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {skuSearching ? (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      ) : (
+                        'Search'
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Search for products using their SKU code. This will find exact matches and similar products.
+                </p>
+              </div>
             </div>
 
             {/* Filters */}

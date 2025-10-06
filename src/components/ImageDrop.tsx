@@ -27,6 +27,7 @@ interface ImageDropProps {
   uploadedImage?: string | null
   triggerSearch?: number  // When changed, triggers search for current uploaded image
   searchImageUrl?: string | null  // Original image URL to search (not blob URL)
+  triggerUrlSearch?: string | null  // When set to a URL, triggers URL search with that URL
   scoreThreshold?: number  // Score threshold for search
   diamondWtMin?: number  // Diamond weight min filter
   diamondWtMax?: number  // Diamond weight max filter
@@ -35,7 +36,7 @@ interface ImageDropProps {
   resultSize?: number  // Number of results to return
 }
 
-export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, resultSize }: ImageDropProps) {
+export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, triggerUrlSearch, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, resultSize }: ImageDropProps) {
   const { data: session } = useSession()
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -153,6 +154,16 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       searchForImageUrl(searchImageUrl)
     }
   }, [triggerSearch, searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax])
+
+  // Handle triggering URL search from external source (e.g., SKU search)
+  useEffect(() => {
+    if (triggerUrlSearch) {
+      console.log('🔄 Triggering URL search for:', triggerUrlSearch)
+      setImageUrl(triggerUrlSearch)
+      setSearchMode('url')
+      searchByUrl(triggerUrlSearch)
+    }
+  }, [triggerUrlSearch])
 
   // Global paste event listener when clipboard tab is active
   useEffect(() => {
@@ -747,13 +758,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           <p className="text-xs text-gray-500 mt-1">
             Click the × button to remove and upload another
           </p>
-          {uploading && (
-            <div className="mt-2 flex items-center justify-center space-x-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-            </div>
-          )}
         </div>
       </div>
     )
