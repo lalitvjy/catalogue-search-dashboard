@@ -11,6 +11,7 @@ interface SearchResult {
   confidence: number
   description?: string | null
   attributes: Record<string, unknown>
+  price?: string | null
 }
 
 interface ResultsGridProps {
@@ -30,6 +31,18 @@ interface ResultsGridProps {
 }
 
 const ITEMS_PER_PAGE = 20
+
+// Helper function to parse price string like "25,232.44 INR" and return formatted price with rupee symbol
+const formatPrice = (priceStr: string | null | undefined): string | null => {
+  if (!priceStr) return null
+  
+  // Extract the numeric part (including commas and decimals) from the string
+  const match = priceStr.match(/[\d,]+\.?\d*/);
+  if (!match) return null
+  
+  const numericValue = match[0]
+  return `₹${numericValue}`
+}
 
 export default function ResultsGrid({ results, searching, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
@@ -253,32 +266,40 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
                   </div>
                   <CopySku skuCode={result.sku_code} className="flex-shrink-0 ml-2" />
                 </div>
+                {/* Price - show below SKU code if available */}
+                {formatPrice(result.price) && (
+                  <div className="text-sm font-medium text-gray-700 mb-1">
+                    {formatPrice(result.price)}
+                  </div>
+                )}
                 {/* File name - show full, allow wrapping */}
                 <div className="text-[11px] text-gray-500 mb-2 break-all" title={result.file_name}>
                   {result.file_name}
                 </div>
                 {/* Description - only render if present */}
                 {descText.trim() !== '' ? (
-                  <div className="text-xs text-gray-700 mb-2 break-words">
+                  <div className="text-xs text-gray-700 mb-2 truncate">
                     {descText}
                   </div>
                 ) : null}
-                {/* Category Tag */}
-                {categoryLabel ? (
-                  <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-md font-semibold">
-                    {categoryLabel}
-                  </span>
-                ) : null}
+                {/* Category + Actions Row */}
+                <div className="mt-1 flex items-center justify-between">
+                  <div className="flex-shrink-0">
+                    <ActionButtons 
+                    currentInteraction={getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined}
+                    onLike={() => performToggle(result, 'LIKE', startIndex + index + 1)}
+                    onDislike={() => performToggle(result, 'DISLIKE', startIndex + index + 1)}
+                    />
+                  </div>
+                  <div>
+                    {categoryLabel ? (
+                      <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-md font-semibold">
+                        {categoryLabel}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </div>
-            
-            {/* Action Buttons */}
-            <div className="flex justify-start">
-              <ActionButtons 
-              currentInteraction={getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined}
-              onLike={() => performToggle(result, 'LIKE', startIndex + index + 1)}
-              onDislike={() => performToggle(result, 'DISLIKE', startIndex + index + 1)}
-              />
             </div>
             
           </div>

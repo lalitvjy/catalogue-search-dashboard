@@ -21,6 +21,7 @@ interface SearchResult {
   confidence: number
   description?: string | null
   attributes: Record<string, unknown>
+  price?: string | null
 }
 
 interface Filters {
@@ -49,6 +50,7 @@ export default function SearchPage() {
   const [skuSearchValue, setSkuSearchValue] = useState<string>('')
   const [skuSearching, setSkuSearching] = useState<boolean>(false)
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
+  const [showSkuSection, setShowSkuSection] = useState<boolean>(false)
   const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
 
   // Reset triggerUrlSearch after it's been used
@@ -61,6 +63,48 @@ export default function SearchPage() {
       return () => clearTimeout(timer)
     }
   }, [triggerUrlSearch])
+
+  // Fetch component show configuration after login to decide visibility of SKU section
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const t0 = performance.now()
+    const brandStart = performance.now()
+    const extended = session as unknown as ExtendedSession
+    const brandId = extended?.brandId
+    const brandEnd = performance.now()
+    console.log('[component/show] brand_id resolution took', Math.round(brandEnd - brandStart), 'ms')
+    if (!brandId) return
+    let isCancelled = false
+    ;(async () => {
+      try {
+        const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'http://localhost:8080'
+        const url = `${baseApiUrl}/api/component/show`
+        const body = new URLSearchParams({ brand_id: brandId }).toString()
+        const fetchStart = performance.now()
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body
+        })
+        const fetchEnd = performance.now()
+        console.log('[component/show] external call took', Math.round(fetchEnd - fetchStart), 'ms', url)
+        if (!resp.ok) throw new Error('Failed to load component visibility')
+        const data = await resp.json()
+        const showVal = (data && (data.show ?? data?.data?.show)) as unknown
+        const shouldShow = Array.isArray(showVal)
+          ? showVal.includes('search_with_sku')
+          : typeof showVal === 'string'
+            ? showVal === 'search_with_sku'
+            : !!(showVal && typeof showVal === 'object' && 'search_with_sku' in (showVal as Record<string, unknown>))
+        if (!isCancelled) setShowSkuSection(Boolean(shouldShow))
+        const tEnd = performance.now()
+        console.log('[component/show] total useEffect time', Math.round(tEnd - t0), 'ms')
+      } catch {
+        if (!isCancelled) setShowSkuSection(false)
+      }
+    })()
+    return () => { isCancelled = true }
+  }, [status, session])
 
   const handleToggleInteraction = async (
     skuId: string,
@@ -344,7 +388,7 @@ export default function SearchPage() {
     setResults([]) // Clear previous search results immediately
 
     try {
-      const response = await fetch('/api/search/sku', {
+      const response = await fetch('/api/search/by-field', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -452,7 +496,8 @@ export default function SearchPage() {
             />
           </div>
 
-          {/* SKU Search - Full width on mobile/tablet */}
+          {/* SKU Search - Full width on mobile/tablet (conditionally shown) */}
+          {showSkuSection && (
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
             <h2 className="text-lg font-semibold mb-4 text-gray-800">Search with SKU</h2>
             <div className="space-y-4">
@@ -489,6 +534,7 @@ export default function SearchPage() {
               </p>
             </div>
           </div>
+          )}
     
           <div className="sm:hidden">
             <button
@@ -592,7 +638,8 @@ export default function SearchPage() {
               />
             </div>
 
-            {/* SKU Search */}
+            {/* SKU Search (conditionally shown) */}
+            {showSkuSection && (
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <h2 className="text-lg font-semibold mb-4 text-gray-800">Search with SKU</h2>
               <div className="space-y-4">
@@ -629,6 +676,7 @@ export default function SearchPage() {
                 </p>
               </div>
             </div>
+            )}
 
             {/* Filters */}
             <div className="bg-white p-6 rounded-lg shadow-sm">

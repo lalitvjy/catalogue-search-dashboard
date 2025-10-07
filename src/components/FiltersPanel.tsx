@@ -9,6 +9,7 @@ interface SearchResult {
   confidence: number
   description?: string | null
   attributes: Record<string, unknown>
+  price?: string | null
 }
 
 interface Filters {
@@ -45,22 +46,16 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
     setHasAnyFilterChanged(false)
   }, [filters.confidence_min])
 
-  // Extract unique categories, tags, diamond_wt, and ctrstone_wt from search results
+  // Extract unique tags, diamond_wt, and ctrstone_wt from search results
   const facets = useMemo(() => {
-    const categories: Record<string, number> = {}
     const tags: Record<string, number> = {}
     const diamondWtValues: number[] = []
     const ctrstoneWtValues: number[] = []
     
     results.forEach(result => {
-      const category = result.attributes?.category
       const tag = result.attributes?.tags
       const diamondWt = result.attributes?.diamond_wt
       const ctrstoneWt = result.attributes?.ctrstone_wt
-      
-      if (category && typeof category === 'string') {
-        categories[category] = (categories[category] || 0) + 1
-      }
       
       if (tag && typeof tag === 'string') {
         tags[tag] = (tags[tag] || 0) + 1
@@ -95,7 +90,6 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
     }
     
     return { 
-      categories, 
       tags, 
       diamondWtMin, 
       diamondWtMax, 
@@ -168,9 +162,6 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
   // Filter results based on current filters
   const filteredResults = useMemo(() => {
     return results.filter(result => {
-      if (filters.category && result.attributes?.category !== filters.category) {
-        return false
-      }
       if (filters.tags && result.attributes?.tags !== filters.tags) {
         return false
       }
@@ -211,26 +202,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
         {filteredResults.length} of {results.length} results
       </div>
 
-      {/* Category Filter */}
-      {Object.keys(facets.categories).length > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-          <select
-            value={pendingFilters.category !== undefined ? pendingFilters.category : (filters.category || '')}
-            onChange={(e) => handleFilterChange('category', e.target.value || undefined)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">All categories</option>
-            {Object.entries(facets.categories)
-              .sort(([,a], [,b]) => b - a) // Sort by count descending
-              .map(([category, count]) => (
-                <option key={category} value={category}>
-                  {category} ({count})
-                </option>
-              ))}
-          </select>
-        </div>
-      )}
+      {/* Category filter removed */}
 
       {/* Tags Filter */}
       {Object.keys(facets.tags).length > 0 && (
@@ -375,7 +347,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
         <div className="pt-3 sm:pt-4 border-t border-gray-200">
           <div className="text-xs text-gray-500 mb-2">Active filters:</div>
           <div className="flex flex-wrap gap-2">
-            {Object.entries(filters).map(([key, value]) => (
+            {Object.entries(filters).filter(([key]) => key !== 'category').map(([key, value]) => (
               <span
                 key={key}
                 className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
