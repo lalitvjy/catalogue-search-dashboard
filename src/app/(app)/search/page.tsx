@@ -50,7 +50,14 @@ export default function SearchPage() {
   const [skuSearchValue, setSkuSearchValue] = useState<string>('')
   const [skuSearching, setSkuSearching] = useState<boolean>(false)
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
-  const [showSkuSection, setShowSkuSection] = useState<boolean>(false)
+  // Initialize from localStorage if available, otherwise default to false
+  const [showSkuSection, setShowSkuSection] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('showSkuSection')
+      return cached !== null ? cached === 'true' : false
+    }
+    return false
+  })
   const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
 
   // Reset triggerUrlSearch after it's been used
@@ -96,11 +103,30 @@ export default function SearchPage() {
           : typeof showVal === 'string'
             ? showVal === 'search_with_sku'
             : !!(showVal && typeof showVal === 'object' && 'search_with_sku' in (showVal as Record<string, unknown>))
-        if (!isCancelled) setShowSkuSection(Boolean(shouldShow))
+        
+        if (!isCancelled) {
+          const newValue = Boolean(shouldShow)
+          // Get the current localStorage value
+          const cachedValue = localStorage.getItem('showSkuSection')
+          const cachedBool = cachedValue === 'true'
+          
+          // Update state and localStorage if the value has changed
+          if (cachedValue === null || cachedBool !== newValue) {
+            console.log('[component/show] updating showSkuSection from', cachedBool, 'to', newValue)
+            localStorage.setItem('showSkuSection', String(newValue))
+            setShowSkuSection(newValue)
+          } else {
+            console.log('[component/show] value unchanged:', newValue)
+          }
+        }
         const tEnd = performance.now()
         console.log('[component/show] total useEffect time', Math.round(tEnd - t0), 'ms')
       } catch {
-        if (!isCancelled) setShowSkuSection(false)
+        if (!isCancelled) {
+          const fallbackValue = false
+          localStorage.setItem('showSkuSection', String(fallbackValue))
+          setShowSkuSection(fallbackValue)
+        }
       }
     })()
     return () => { isCancelled = true }
