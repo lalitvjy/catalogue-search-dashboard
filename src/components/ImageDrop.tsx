@@ -18,6 +18,7 @@ interface SearchResult {
   confidence: number
   description?: string | null
   attributes: Record<string, unknown>
+  price?: string | null
 }
 
 interface ImageDropProps {

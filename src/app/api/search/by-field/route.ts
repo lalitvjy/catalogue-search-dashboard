@@ -38,30 +38,44 @@ export async function POST(req: Request) {
   try {
     // Parse JSON body from the request
     const body = await req.json()
-    const { sku } = body
+    const { sku, category } = body
     
-    if (!sku) {
-      return new NextResponse('No SKU provided', { status: 400 })
+    // Determine search field and value
+    let searchField: string
+    let searchValue: string
+    let queryType: string
+    
+    if (sku) {
+      searchField = 'sku'
+      searchValue = sku
+      queryType = 'sku'
+    } else if (category) {
+      searchField = 'category'
+      searchValue = category
+      queryType = 'category'
+    } else {
+      return new NextResponse('No search field provided (sku or category required)', { status: 400 })
     }
 
-    console.log('🔍 SKU Search Request:', {
-      sku,
+    console.log('🔍 Field Search Request:', {
+      field: searchField,
+      value: searchValue,
       brandId: brand.id
     })
 
     // Get API URL from environment - use the same pattern as other endpoints
     const baseApiUrl = process.env.API_SERVER_HOST || 'http://localhost:8080'
-    const skuSearchUrl = `${baseApiUrl}/api/search/by-sku`
+    const fieldSearchUrl = `${baseApiUrl}/api/search/by-field`
     
     console.log('🔍 Base API URL:', baseApiUrl)
-    console.log('🔍 SKU Search URL:', skuSearchUrl)
+    console.log('🔍 Field Search URL:', fieldSearchUrl)
 
     // Create form data for the external API
     const formData = new FormData()
-    formData.append('sku', sku.trim())
+    formData.append(searchField, searchValue.trim())
     formData.append('brand_id', brand.id)
 
-    console.log('Calling mirrAR Lens API for SKU search...')
+    console.log('Calling mirrAR Lens API for field search...')
     
     // Add timeout for reliability
     const controller = new AbortController()
@@ -69,7 +83,7 @@ export async function POST(req: Request) {
     
     let searchResponse: Response
     try {
-      searchResponse = await fetch(skuSearchUrl, {
+      searchResponse = await fetch(fieldSearchUrl, {
         method: 'POST',
         body: formData,
         signal: controller.signal
@@ -78,19 +92,19 @@ export async function POST(req: Request) {
     } catch (fetchError) {
       clearTimeout(timeoutId)
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        throw new Error('SKU search request timed out. Please try again.')
+        throw new Error('Field search request timed out. Please try again.')
       }
       throw fetchError
     }
 
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text()
-      console.error('❌ SKU Search API Error:', searchResponse.status, errorText)
-      throw new Error(`SKU search failed: ${searchResponse.status} ${searchResponse.statusText}`)
+      console.error('❌ Field Search API Error:', searchResponse.status, errorText)
+      throw new Error(`Field search failed: ${searchResponse.status} ${searchResponse.statusText}`)
     }
 
     const apiResult = await searchResponse.json()
-    console.log('✅ SKU Search API Response:', apiResult)
+    console.log('✅ Field Search API Response:', apiResult)
 
     const tookMs = Date.now() - t0
     
@@ -99,14 +113,14 @@ export async function POST(req: Request) {
       data: { 
         userId, 
         brandId, 
-        queryType: 'sku', 
+        queryType, 
         threshold: 0, 
         topK: 1, 
         tookMs, 
         filters: {
           collection: brand.qdrantCollection,
           brand_slug: brand.slug,
-          sku: sku.trim()
+          [searchField]: searchValue.trim()
         } 
       } 
     }).catch(() => {})
@@ -122,8 +136,9 @@ export async function POST(req: Request) {
     return response
 
   } catch (error) {
-    console.error('❌ SKU Search Error:', error)
+    console.error('❌ Field Search Error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-    return new NextResponse(`SKU search failed: ${errorMessage}`, { status: 500 })
+    return new NextResponse(`Field search failed: ${errorMessage}`, { status: 500 })
   }
 }
+
