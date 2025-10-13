@@ -26,11 +26,21 @@ export default function CropOverlay({ imageUrl, onCropEnd }: CropOverlayProps) {
 		}
 	>(null)
 
+	const [panning, setPanning] = useState<
+		| null
+		| {
+			originRect: CropRect
+			originPointer: { x: number; y: number }
+		}
+	>(null)
+
 	const onPointerDown = useCallback((e: React.PointerEvent) => {
 		if (!containerRef.current) return
 		const bounds = containerRef.current.getBoundingClientRect()
 		const x = Math.max(0, Math.min(e.clientX - bounds.left, bounds.width))
 		const y = Math.max(0, Math.min(e.clientY - bounds.top, bounds.height))
+		
+		// Check if clicking outside rectangle - create new rectangle
 		if (!rect || x < rect.x || y < rect.y || x > rect.x + rect.width || y > rect.y + rect.height) {
 			setStart({ x, y })
 			setRect({ x, y, width: 0, height: 0 })
@@ -43,6 +53,7 @@ export default function CropOverlay({ imageUrl, onCropEnd }: CropOverlayProps) {
 		const bounds = containerRef.current.getBoundingClientRect()
 		const currX = Math.max(0, Math.min(e.clientX - bounds.left, bounds.width))
 		const currY = Math.max(0, Math.min(e.clientY - bounds.top, bounds.height))
+		
 		if (dragging && start) {
 			const x = Math.min(start.x, currX)
 			const y = Math.min(start.y, currY)
@@ -51,6 +62,23 @@ export default function CropOverlay({ imageUrl, onCropEnd }: CropOverlayProps) {
 			setRect({ x, y, width, height })
 			return
 		}
+		
+		if (panning && rect) {
+			const dx = currX - panning.originPointer.x
+			const dy = currY - panning.originPointer.y
+			
+			// Calculate new position
+			let newX = panning.originRect.x + dx
+			let newY = panning.originRect.y + dy
+			
+			// Keep within bounds
+			newX = Math.max(0, Math.min(newX, bounds.width - rect.width))
+			newY = Math.max(0, Math.min(newY, bounds.height - rect.height))
+			
+			setRect({ ...rect, x: newX, y: newY })
+			return
+		}
+		
 		if (resizing && rect) {
 			const minSize = 20
 			let { x, y, width, height } = { ...rect }
@@ -120,17 +148,18 @@ export default function CropOverlay({ imageUrl, onCropEnd }: CropOverlayProps) {
 			height = Math.min(height, bounds.height - y)
 			setRect({ x, y, width, height })
 		}
-	}, [dragging, start, resizing, rect])
+	}, [dragging, start, panning, resizing, rect])
 
 	const onPointerUp = useCallback(() => {
-		if ((dragging || resizing) && rect && rect.width >= 5 && rect.height >= 5 && containerRef.current) {
+		if ((dragging || resizing || panning) && rect && rect.width >= 5 && rect.height >= 5 && containerRef.current) {
 			const bounds = containerRef.current.getBoundingClientRect()
 			onCropEnd({ rect, containerWidth: bounds.width, containerHeight: bounds.height })
 		}
 		setDragging(false)
 		setStart(null)
 		setResizing(null)
-	}, [dragging, rect, onCropEnd, resizing])
+		setPanning(null)
+	}, [dragging, panning, rect, onCropEnd, resizing])
 
 	const selection = useMemo(() => {
 		if (!rect) return null
@@ -141,6 +170,21 @@ export default function CropOverlay({ imageUrl, onCropEnd }: CropOverlayProps) {
 				<div
 					className="absolute border-2 border-blue-500/80 rounded-md shadow-[0_0_0_2px_rgba(59,130,246,0.15)]"
 					style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height, backgroundColor: 'rgba(255,255,255,0.2)' }}
+				/>
+				{/* Panning area - clickable area inside rectangle to move it */}
+				<div
+					className="absolute cursor-move"
+					style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
+					onPointerDown={(e) => { 
+						e.stopPropagation(); 
+						setPanning({ 
+							originRect: rect, 
+							originPointer: { 
+								x: e.clientX - (containerRef.current?.getBoundingClientRect().left || 0), 
+								y: e.clientY - (containerRef.current?.getBoundingClientRect().top || 0) 
+							} 
+						}) 
+					}}
 				/>
 				<div
 					className={handleClass}
