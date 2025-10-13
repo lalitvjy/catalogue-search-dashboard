@@ -5,6 +5,7 @@ import CropOverlay from '@/components/CropOverlay'
 import { useImageStore } from '@/lib/image-store'
 import { cropFromBlob } from '@/lib/crop'
 import type { CropSelection as LibCropSelection } from '@/lib/crop'
+import posthog from 'posthog-js'
 
 interface ExtendedSession {
   brandId?: string
@@ -439,6 +440,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       return
     }
 
+    posthog.capture('upload')
+
     setUploading(true)
     onSearching?.(true)
     setUploadProgress(10) // Initial progress
@@ -582,6 +585,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       return
     }
     
+    posthog.capture('url')
+    
     onImageUpload(imageUrl.trim())
     try {
       await setFromUrl(imageUrl.trim())
@@ -636,6 +641,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setError(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please use an image smaller than 5MB.`)
       return
     }
+
+    posthog.capture('paste')
 
     setUploading(true)
     onSearching?.(true)

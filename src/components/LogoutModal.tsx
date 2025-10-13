@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { signOut } from 'next-auth/react'
+import posthog from 'posthog-js'
 
 interface LogoutModalProps {
   isOpen: boolean
@@ -32,6 +33,8 @@ export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalP
   }, [isOpen, isLoggingOut, onClose])
 
   const handleLogout = async () => {
+    posthog.capture('sign_out')
+    
     setIsLoggingOut(true)
     try {
       await signOut({ 
@@ -91,7 +94,10 @@ export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalP
             {/* Stay Signed In - Primary Action (Default) */}
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                posthog.capture('stay_signed_in', { source: 'logout_modal' })
+                onClose()
+              }}
               className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto"
             >
               Stay Signed In

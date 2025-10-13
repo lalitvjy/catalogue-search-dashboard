@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
+import posthog from 'posthog-js'
 
 export default function FeedbackButton() {
   const [isHovered, setIsHovered] = useState(false)
@@ -22,6 +23,7 @@ export default function FeedbackButton() {
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => posthog.capture('give_feedback')}
       title="Provide feedback"
     >
       <svg 

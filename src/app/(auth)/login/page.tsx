@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import posthog from 'posthog-js'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -16,6 +17,8 @@ export default function Login() {
     e.preventDefault()
     setIsLoading(true)
     setError('')
+
+    posthog.capture('sign_in', { method: 'credentials', remember_me: rememberMe })
 
     try {
       const result = await signIn('credentials', {
@@ -39,10 +42,12 @@ export default function Login() {
   }
 
   const handleGoogleSignIn = () => {
+    posthog.capture('sign_in_with_google')
     signIn('google', { callbackUrl: '/search' })
   }
 
   const handleMicrosoftSignIn = () => {
+    posthog.capture('sign_in_with_ms')
     signIn('azure-ad', { callbackUrl: '/search' })
   }
 
@@ -109,7 +114,13 @@ export default function Login() {
                   name="remember-me"
                   type="checkbox"
                   checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    setRememberMe(checked)
+                    if (checked) {
+                      posthog.capture('stay_signed_in', { source: 'login_page' })
+                    }
+                  }}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
@@ -194,6 +205,7 @@ export default function Login() {
               <Link
                 href="/signup"
                 className="text-blue-600 hover:text-blue-500 font-medium"
+                onClick={() => posthog.capture('sign_up')}
               >
                 Sign up
               </Link>

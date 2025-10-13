@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
+import posthog from 'posthog-js'
 
 interface SearchResult {
   sku_id: string
@@ -71,6 +72,13 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
   }, [showPopup])
 
   const handleImageClick = (result: SearchResult, event: React.MouseEvent) => {
+    posthog.capture('zoomed_in', { 
+      sku_id: result.sku_id,
+      sku_code: result.sku_code,
+      confidence: result.confidence,
+      file_name: result.file_name
+    })
+    
     setSelectedResult(result)
     setClickedElement(event.currentTarget as HTMLElement)
     setShowPopup(true)
@@ -242,7 +250,16 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
             {onFindSimilar && (
               <div className="absolute top-2 left-2">
                 <button
-                  onClick={() => onFindSimilar(result.image_url)}
+                  onClick={() => {
+                    posthog.capture('search_from_image', { 
+                      sku_id: result.sku_id,
+                      sku_code: result.sku_code,
+                      confidence: result.confidence,
+                      file_name: result.file_name,
+                      image_url: result.image_url
+                    })
+                    onFindSimilar(result.image_url)
+                  }}
                   className="p-1.5 rounded-md transition-colors text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                   title="Find similar products"
                 >
@@ -264,7 +281,15 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
                   <div className="flex-1 min-w-0 font-semibold text-sm text-gray-900 break-all" title={result.sku_code}>
                     {result.sku_code}
                   </div>
-                  <CopySku skuCode={result.sku_code} className="flex-shrink-0 ml-2" />
+                  <CopySku 
+                    skuCode={result.sku_code} 
+                    className="flex-shrink-0 ml-2"
+                    productData={{
+                      sku_id: result.sku_id,
+                      confidence: result.confidence,
+                      file_name: result.file_name
+                    }}
+                  />
                 </div>
                 {/* Price - show below SKU code if available */}
                 {formatPrice(result.price) && (
@@ -289,6 +314,12 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
                     currentInteraction={getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined}
                     onLike={() => performToggle(result, 'LIKE', startIndex + index + 1)}
                     onDislike={() => performToggle(result, 'DISLIKE', startIndex + index + 1)}
+                    productData={{
+                      sku_id: result.sku_id,
+                      sku_code: result.sku_code,
+                      confidence: result.confidence,
+                      file_name: result.file_name
+                    }}
                     />
                   </div>
                   <div>

@@ -7,6 +7,7 @@ import ResultsGrid from '@/components/ResultsGrid'
 import FiltersPanel from '@/components/FiltersPanel'
 import LogoutModal from '@/components/LogoutModal'
 import { useSearchInteractions } from '@/hooks/useSearchInteractions'
+import posthog from 'posthog-js'
 
 interface ExtendedSession {
   brandId?: string
@@ -372,6 +373,8 @@ export default function SearchPage() {
   const handleApplyConfidenceFilter = (confidence: number) => {
     setError(null)
     
+    posthog.capture('confidence_filter', { confidence_value: confidence })
+    
     // Update filters with new confidence threshold
     setFilters(prev => ({ ...prev, confidence_min: confidence }))
     
@@ -383,6 +386,9 @@ export default function SearchPage() {
 
   const handleResultSizeChange = (newSize: number) => {
     console.log('handleResultSizeChange called with:', newSize)
+    
+    posthog.capture('no_of_results', { result_count: newSize })
+    
     setResultSize(newSize)
     // Don't trigger search immediately - wait for Apply button
   }
@@ -403,6 +409,8 @@ export default function SearchPage() {
       setError('Please enter a SKU value to search')
       return
     }
+
+    posthog.capture('search_with_sku', { sku: skuSearchValue.trim() })
 
     setSkuSearching(true)
     setSearching(true) // Show the main "Searching for similar products..." loader
@@ -474,7 +482,10 @@ export default function SearchPage() {
                 Welcome, {session.user?.email}
               </span>
               <button
-                onClick={() => setShowLogoutModal(true)}
+                onClick={() => {
+                  posthog.capture('logout')
+                  setShowLogoutModal(true)
+                }}
                 className="px-4 py-2 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
               >
                 Logout

@@ -1,12 +1,19 @@
 'use client'
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline'
 import { HandThumbUpIcon as HandThumbUpSolid, HandThumbDownIcon as HandThumbDownSolid } from '@heroicons/react/24/solid'
+import posthog from 'posthog-js'
 
 interface ActionButtonsProps {
   className?: string
   currentInteraction?: 'LIKE' | 'DISLIKE' | null
   onLike?: () => void
   onDislike?: () => void
+  productData?: {
+    sku_id?: string
+    sku_code?: string
+    confidence?: number
+    file_name?: string
+  }
 }
 
 type LikeState = 'none' | 'liked' | 'disliked'
@@ -15,7 +22,8 @@ export default function ActionButtons({
   className = '', 
   currentInteraction,
   onLike, 
-  onDislike 
+  onDislike,
+  productData
 }: ActionButtonsProps) {
   // Convert external interaction state to internal state
   const likeState: LikeState = 
@@ -23,10 +31,16 @@ export default function ActionButtons({
     currentInteraction === 'DISLIKE' ? 'disliked' : 'none'
 
   const handleLike = () => {
+    posthog.capture('liked', {
+      ...productData
+    })
     onLike?.()
   }
 
   const handleDislike = () => {
+    posthog.capture('disliked', {
+      ...productData
+    })
     onDislike?.()
   }
 
