@@ -1,16 +1,28 @@
 'use client'
 import { useState } from 'react'
 import { DocumentDuplicateIcon, CheckIcon } from '@heroicons/react/24/outline'
+import posthog from 'posthog-js'
 
 interface CopySkuProps {
   skuCode: string
   className?: string
+  productData?: {
+    sku_id?: string
+    confidence?: number
+    file_name?: string
+  }
 }
 
-export default function CopySku({ skuCode, className = '' }: CopySkuProps) {
+export default function CopySku({ skuCode, className = '', productData }: CopySkuProps) {
   const [copied, setCopied] = useState(false)
+  
 
   const handleCopy = async () => {
+    posthog.capture('clicked_copy', {
+      sku_code: skuCode,
+      ...productData
+    })
+    
     try {
       await navigator.clipboard.writeText(skuCode)
       setCopied(true)

@@ -5,6 +5,8 @@ import CropOverlay from '@/components/CropOverlay'
 import { useImageStore } from '@/lib/image-store'
 import { cropFromBlob } from '@/lib/crop'
 import type { CropSelection as LibCropSelection } from '@/lib/crop'
+import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface ExtendedSession {
   brandId?: string
@@ -48,6 +50,16 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
   const [clipboardReady, setClipboardReady] = useState(false)
   const cropTimeoutRef = useRef<number | null>(null)
   const { setFromFile, setFromUrl, originalBlob } = useImageStore()
+  
+  // Impression tracking for upload mode tab buttons
+  const uploadTabRef = useImpressionTracking({ eventName: 'imp_upload_tab' })
+  const urlTabRef = useImpressionTracking({ eventName: 'imp_url_tab' })
+  const pasteTabRef = useImpressionTracking({ eventName: 'imp_paste_tab' })
+  
+  // Impression tracking for upload mode content areas
+  const uploadModeRef = useImpressionTracking({ eventName: 'imp_upload_mode_visible' })
+  const urlModeRef = useImpressionTracking({ eventName: 'imp_url_mode_visible' })
+  const pasteModeRef = useImpressionTracking({ eventName: 'imp_paste_mode_visible' })
 
   const searchWithFile = async (file: File) => {
     try {
@@ -439,6 +451,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       return
     }
 
+    posthog.capture('upload')
+
     setUploading(true)
     onSearching?.(true)
     setUploadProgress(10) // Initial progress
@@ -582,6 +596,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       return
     }
     
+    posthog.capture('url')
+    
     onImageUpload(imageUrl.trim())
     try {
       await setFromUrl(imageUrl.trim())
@@ -636,6 +652,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setError(`Image is too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Please use an image smaller than 5MB.`)
       return
     }
+
+    posthog.capture('paste')
 
     setUploading(true)
     onSearching?.(true)
@@ -796,7 +814,11 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       {/* Mode Toggle */}
       <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
         <button
-          onClick={() => setSearchMode('upload')}
+          ref={uploadTabRef as React.RefObject<HTMLButtonElement>}
+          onClick={() => {
+            posthog.capture('upload_tab')
+            setSearchMode('upload')
+          }}
           className={`px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
             searchMode === 'upload'
               ? 'bg-white text-gray-900 shadow-sm'
@@ -806,7 +828,11 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           Upload
         </button>
         <button
-          onClick={() => setSearchMode('url')}
+          ref={urlTabRef as React.RefObject<HTMLButtonElement>}
+          onClick={() => {
+            posthog.capture('url_tab')
+            setSearchMode('url')
+          }}
           className={`px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
             searchMode === 'url'
               ? 'bg-white text-gray-900 shadow-sm'
@@ -816,7 +842,11 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           URL
         </button>
         <button
-          onClick={() => setSearchMode('clipboard')}
+          ref={pasteTabRef as React.RefObject<HTMLButtonElement>}
+          onClick={() => {
+            posthog.capture('paste_tab')
+            setSearchMode('clipboard')
+          }}
           className={`px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
             searchMode === 'clipboard'
               ? 'bg-white text-gray-900 shadow-sm'
@@ -830,6 +860,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       {/* Upload Mode */}
       {searchMode === 'upload' && (
         <div
+          ref={uploadModeRef as React.RefObject<HTMLDivElement>}
           className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
             dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
           }`}
@@ -866,7 +897,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       {/* URL Mode */}
       {searchMode === 'url' && (
-        <div className="space-y-3">
+        <div ref={urlModeRef as React.RefObject<HTMLDivElement>} className="space-y-3">
           <div className="flex space-x-2">
             <input
               type="url"
@@ -892,7 +923,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       {/* Clipboard Mode */}
       {searchMode === 'clipboard' && (
-        <div className="space-y-3">
+        <div ref={pasteModeRef as React.RefObject<HTMLDivElement>} className="space-y-3">
           <div
             className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
               clipboardReady 

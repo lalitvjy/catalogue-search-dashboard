@@ -7,6 +7,8 @@ import ResultsGrid from '@/components/ResultsGrid'
 import FiltersPanel from '@/components/FiltersPanel'
 import LogoutModal from '@/components/LogoutModal'
 import { useSearchInteractions } from '@/hooks/useSearchInteractions'
+import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface ExtendedSession {
   brandId?: string
@@ -59,6 +61,11 @@ export default function SearchPage() {
     return false
   })
   const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
+  
+  // Impression tracking for search page elements
+  const skuSearchMobileRef = useImpressionTracking({ eventName: 'imp_search_with_sku', properties: { placement: 'mobile' }, threshold: 0.1 })
+  const skuSearchDesktopRef = useImpressionTracking({ eventName: 'imp_search_with_sku', properties: { placement: 'desktop' }, threshold: 0.1 })
+  const logoutButtonRef = useImpressionTracking({ eventName: 'imp_logout' })
 
   // Reset triggerUrlSearch after it's been used
   useEffect(() => {
@@ -293,6 +300,22 @@ export default function SearchPage() {
   const handleSearchResults = async (searchResults: SearchResult[]) => {
     setResults(searchResults)
     
+    // Track search results impression with full response data
+    if (searchResults.length > 0) {
+      posthog.capture('imp_search_results_loaded', {
+        total_results: searchResults.length,
+        results: searchResults.map((result, index) => ({
+          sku_id: result.sku_id,
+          sku_code: result.sku_code,
+          confidence: result.confidence,
+          position: index + 1,
+          file_name: result.file_name,
+          price: result.price,
+          category: result.attributes?.category
+        }))
+      })
+    }
+    
     // Create search interaction when we have search results and an uploaded image
     if (searchResults.length > 0 && uploadedImage) {
       try {
@@ -372,6 +395,8 @@ export default function SearchPage() {
   const handleApplyConfidenceFilter = (confidence: number) => {
     setError(null)
     
+    posthog.capture('confidence_filter', { confidence_value: confidence })
+    
     // Update filters with new confidence threshold
     setFilters(prev => ({ ...prev, confidence_min: confidence }))
     
@@ -383,6 +408,9 @@ export default function SearchPage() {
 
   const handleResultSizeChange = (newSize: number) => {
     console.log('handleResultSizeChange called with:', newSize)
+    
+    posthog.capture('no_of_results', { result_count: newSize })
+    
     setResultSize(newSize)
     // Don't trigger search immediately - wait for Apply button
   }
@@ -403,6 +431,8 @@ export default function SearchPage() {
       setError('Please enter a SKU value to search')
       return
     }
+
+    posthog.capture('search_with_sku', { sku: skuSearchValue.trim() })
 
     setSkuSearching(true)
     setSearching(true) // Show the main "Searching for similar products..." loader
@@ -474,7 +504,11 @@ export default function SearchPage() {
                 Welcome, {session.user?.email}
               </span>
               <button
-                onClick={() => setShowLogoutModal(true)}
+                ref={logoutButtonRef as React.RefObject<HTMLButtonElement>}
+                onClick={() => {
+                  posthog.capture('logout')
+                  setShowLogoutModal(true)
+                }}
                 className="px-4 py-2 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
               >
                 Logout
@@ -530,6 +564,7 @@ export default function SearchPage() {
               <div>
                 <div className="flex gap-2">
                   <input
+                    ref={skuSearchMobileRef as React.RefObject<HTMLInputElement>}
                     id="sku-search"
                     type="text"
                     value={skuSearchValue}
@@ -672,6 +707,7 @@ export default function SearchPage() {
                 <div>
                   <div className="flex gap-2">
                     <input
+                      ref={skuSearchDesktopRef as React.RefObject<HTMLInputElement>}
                       id="sku-search-desktop"
                       type="text"
                       value={skuSearchValue}

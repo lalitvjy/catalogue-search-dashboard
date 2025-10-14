@@ -2,10 +2,15 @@
 
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
+import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 export default function FeedbackButton() {
   const [isHovered, setIsHovered] = useState(false)
   const pathname = usePathname()
+  
+  // Impression tracking for feedback button
+  const feedbackButtonRef = useImpressionTracking({ eventName: 'imp_give_feedback' })
   
   // Only show on the search page
   if (pathname !== '/search') {
@@ -14,6 +19,7 @@ export default function FeedbackButton() {
 
   return (
     <a
+      ref={feedbackButtonRef as React.RefObject<HTMLAnchorElement>}
       href="https://mirrar.canny.io/reverse-image-search"
       target="_blank"
       rel="noopener noreferrer"
@@ -22,6 +28,7 @@ export default function FeedbackButton() {
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => posthog.capture('give_feedback')}
       title="Provide feedback"
     >
       <svg 
