@@ -1,11 +1,40 @@
 'use client'
 import Link from 'next/link'
 import { ArrowRightIcon, MagnifyingGlassIcon, PhotoIcon, CheckIcon, PlayIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  
+  // Memoize properties to prevent recreation on every render
+  const signinDesktopNavProps = useMemo(() => ({ location: 'desktop_nav' }), [])
+  const getStartedDesktopNavProps = useMemo(() => ({ location: 'desktop_nav' }), [])
+  const signinMobileNavProps = useMemo(() => ({ location: 'mobile_nav' }), [])
+  const getStartedMobileNavProps = useMemo(() => ({ location: 'mobile_nav' }), [])
+  const heroDemoProps = useMemo(() => ({ location: 'hero_demo' }), [])
+  const heroStartNowProps = useMemo(() => ({ location: 'hero_start_now' }), [])
+  const pricingCoreProps = useMemo(() => ({ location: 'pricing_core' }), [])
+  const pricingProProps = useMemo(() => ({ location: 'pricing_pro' }), [])
+  const pricingEnterpriseProps = useMemo(() => ({ location: 'pricing_enterprise' }), [])
+  const pricingBottomProps = useMemo(() => ({ location: 'pricing_bottom' }), [])
+  const finalCtaDemoProps = useMemo(() => ({ location: 'final_cta_demo' }), [])
+  const finalCtaStartProps = useMemo(() => ({ location: 'final_cta_start' }), [])
+  
+  // Impression tracking for all clickable elements
+  const signinDesktopNavRef = useImpressionTracking({ eventName: 'imp_signin_landing', properties: signinDesktopNavProps })
+  const getStartedDesktopNavRef = useImpressionTracking({ eventName: 'imp_get_started', properties: getStartedDesktopNavProps })
+  const signinMobileNavRef = useImpressionTracking({ eventName: 'imp_signin_landing', properties: signinMobileNavProps })
+  const getStartedMobileNavRef = useImpressionTracking({ eventName: 'imp_get_started', properties: getStartedMobileNavProps })
+  const heroDemoRef = useImpressionTracking({ eventName: 'imp_get_started', properties: heroDemoProps })
+  const heroStartNowRef = useImpressionTracking({ eventName: 'imp_get_started', properties: heroStartNowProps })
+  const pricingCoreRef = useImpressionTracking({ eventName: 'imp_get_started', properties: pricingCoreProps })
+  const pricingProRef = useImpressionTracking({ eventName: 'imp_get_started', properties: pricingProProps })
+  const pricingEnterpriseRef = useImpressionTracking({ eventName: 'imp_get_started', properties: pricingEnterpriseProps })
+  const pricingBottomRef = useImpressionTracking({ eventName: 'imp_get_started', properties: pricingBottomProps })
+  const finalCtaDemoRef = useImpressionTracking({ eventName: 'imp_get_started', properties: finalCtaDemoProps })
+  const finalCtaStartRef = useImpressionTracking({ eventName: 'imp_get_started', properties: finalCtaStartProps })
 
   return (
     <div className="min-h-screen bg-white">
@@ -40,6 +69,7 @@ export default function Home() {
             {/* Desktop CTA Buttons */}
             <div className="hidden md:flex items-center space-x-4">
               <Link
+                ref={signinDesktopNavRef as React.RefObject<HTMLAnchorElement>}
                 href="/login"
                 className="text-gray-600 hover:text-gray-900 px-3 py-2 text-sm font-medium"
                 onClick={() => posthog.capture('signin_landing', { location: 'desktop_nav' })}
@@ -47,6 +77,7 @@ export default function Home() {
                 Sign In
               </Link>
               <Link
+                ref={getStartedDesktopNavRef as React.RefObject<HTMLAnchorElement>}
                 href="/login"
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 shadow-sm hover:shadow-md"
                 onClick={() => posthog.capture('get_started', { location: 'desktop_nav' })}
@@ -98,6 +129,7 @@ export default function Home() {
                 </Link>
                 <div className="pt-2 border-t border-gray-100">
                   <Link
+                    ref={signinMobileNavRef as React.RefObject<HTMLAnchorElement>}
                     href="/login"
                     className="block px-3 py-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
                     onClick={() => {
@@ -108,6 +140,7 @@ export default function Home() {
                     Sign In
                   </Link>
                   <Link
+                    ref={getStartedMobileNavRef as React.RefObject<HTMLAnchorElement>}
                     href="/login"
                     className="block mx-3 mt-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all duration-200 text-center"
                     onClick={() => {
@@ -162,6 +195,7 @@ export default function Home() {
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4 mb-12 justify-center lg:justify-start">
                 <Link
+                  ref={heroDemoRef as React.RefObject<HTMLAnchorElement>}
                   href="/login"
                   className="inline-flex items-center justify-center px-6 sm:px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 text-center"
                   onClick={() => posthog.capture('get_started', { location: 'hero_demo' })}
@@ -170,6 +204,7 @@ export default function Home() {
                   <span className="text-sm sm:text-base">Book a 30-min Demo</span>
                 </Link>
                 <Link
+                  ref={heroStartNowRef as React.RefObject<HTMLAnchorElement>}
                   href="/login"
                   className="inline-flex items-center justify-center px-4 sm:px-6 py-4 bg-white hover:bg-gray-50 text-gray-900 font-semibold rounded-lg border border-gray-200 transition-all duration-200 shadow-sm hover:shadow-md text-center"
                   onClick={() => posthog.capture('get_started', { location: 'hero_start_now' })}
@@ -380,6 +415,7 @@ export default function Home() {
               </ul>
 
               <Link
+                ref={pricingCoreRef as React.RefObject<HTMLAnchorElement>}
                 href="/login"
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 text-center block"
                 onClick={() => posthog.capture('get_started', { location: 'pricing_core' })}
@@ -433,6 +469,7 @@ export default function Home() {
               </ul>
 
               <Link
+                ref={pricingProRef as React.RefObject<HTMLAnchorElement>}
                 href="/login"
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 text-center block shadow-lg hover:shadow-xl"
                 onClick={() => posthog.capture('get_started', { location: 'pricing_pro' })}
@@ -481,6 +518,7 @@ export default function Home() {
               </ul>
 
               <Link
+                ref={pricingEnterpriseRef as React.RefObject<HTMLAnchorElement>}
                 href="/login"
                 className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 text-center block"
                 onClick={() => posthog.capture('get_started', { location: 'pricing_enterprise' })}
@@ -493,6 +531,7 @@ export default function Home() {
           {/* Bottom CTA */}
           <div className="text-center mt-16">
             <Link
+              ref={pricingBottomRef as React.RefObject<HTMLAnchorElement>}
               href="/login"
               className="inline-flex items-center justify-center px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl mb-6"
               onClick={() => posthog.capture('get_started', { location: 'pricing_bottom' })}
@@ -648,6 +687,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
+              ref={finalCtaDemoRef as React.RefObject<HTMLAnchorElement>}
               href="/login"
               className="inline-flex items-center justify-center px-8 py-4 bg-white hover:bg-gray-50 text-blue-700 font-semibold rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl"
               onClick={() => posthog.capture('get_started', { location: 'final_cta_demo' })}
@@ -656,6 +696,7 @@ export default function Home() {
               Book a Demo – 30 Minutes
             </Link>
             <Link
+              ref={finalCtaStartRef as React.RefObject<HTMLAnchorElement>}
               href="/login"
               className="inline-flex items-center justify-center px-8 py-4 bg-blue-800 hover:bg-blue-900 text-white font-semibold rounded-lg border border-blue-500 transition-all duration-200 shadow-lg hover:shadow-xl"
               onClick={() => posthog.capture('get_started', { location: 'final_cta_start' })}

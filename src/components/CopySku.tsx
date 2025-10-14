@@ -1,7 +1,8 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { DocumentDuplicateIcon, CheckIcon } from '@heroicons/react/24/outline'
 import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface CopySkuProps {
   skuCode: string
@@ -15,6 +16,18 @@ interface CopySkuProps {
 
 export default function CopySku({ skuCode, className = '', productData }: CopySkuProps) {
   const [copied, setCopied] = useState(false)
+  
+  // Memoize properties based on actual values
+  const impressionProperties = useMemo(() => ({
+    sku_code: skuCode,
+    ...productData
+  }), [skuCode, productData])
+  
+  // Impression tracking for copy button
+  const copyButtonRef = useImpressionTracking({
+    eventName: 'imp_clicked_copy',
+    properties: impressionProperties
+  })
 
   const handleCopy = async () => {
     posthog.capture('clicked_copy', {
@@ -42,6 +55,7 @@ export default function CopySku({ skuCode, className = '', productData }: CopySk
 
   return (
     <button
+      ref={copyButtonRef as React.RefObject<HTMLButtonElement>}
       onClick={handleCopy}
       className={`p-1.5 rounded-md transition-colors ${
         copied 

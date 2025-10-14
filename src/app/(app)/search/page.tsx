@@ -8,6 +8,7 @@ import FiltersPanel from '@/components/FiltersPanel'
 import LogoutModal from '@/components/LogoutModal'
 import { useSearchInteractions } from '@/hooks/useSearchInteractions'
 import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface ExtendedSession {
   brandId?: string
@@ -60,6 +61,10 @@ export default function SearchPage() {
     return false
   })
   const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
+  
+  // Impression tracking for search page elements
+  const skuSearchRef = useImpressionTracking({ eventName: 'imp_search_with_sku' })
+  const logoutButtonRef = useImpressionTracking({ eventName: 'imp_logout' })
 
   // Reset triggerUrlSearch after it's been used
   useEffect(() => {
@@ -482,6 +487,7 @@ export default function SearchPage() {
                 Welcome, {session.user?.email}
               </span>
               <button
+                ref={logoutButtonRef as React.RefObject<HTMLButtonElement>}
                 onClick={() => {
                   posthog.capture('logout')
                   setShowLogoutModal(true)
@@ -541,6 +547,7 @@ export default function SearchPage() {
               <div>
                 <div className="flex gap-2">
                   <input
+                    ref={skuSearchRef as React.RefObject<HTMLInputElement>}
                     id="sku-search"
                     type="text"
                     value={skuSearchValue}
@@ -683,6 +690,7 @@ export default function SearchPage() {
                 <div>
                   <div className="flex gap-2">
                     <input
+                      ref={skuSearchRef as React.RefObject<HTMLInputElement>}
                       id="sku-search-desktop"
                       type="text"
                       value={skuSearchValue}

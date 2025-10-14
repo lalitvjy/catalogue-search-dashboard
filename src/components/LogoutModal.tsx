@@ -1,7 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { signOut } from 'next-auth/react'
 import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface LogoutModalProps {
   isOpen: boolean
@@ -11,6 +12,13 @@ interface LogoutModalProps {
 
 export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  
+  // Memoize properties to prevent recreation on every render
+  const staySignedInProps = useMemo(() => ({ source: 'logout_modal' }), [])
+  
+  // Impression tracking for logout modal buttons
+  const staySignedInRef = useImpressionTracking({ eventName: 'imp_stay_signed_in', properties: staySignedInProps })
+  const signOutRef = useImpressionTracking({ eventName: 'imp_sign_out' })
 
   // Handle ESC key press
   useEffect(() => {
@@ -93,6 +101,7 @@ export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalP
           <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
             {/* Stay Signed In - Primary Action (Default) */}
             <button
+              ref={staySignedInRef as React.RefObject<HTMLButtonElement>}
               type="button"
               onClick={() => {
                 posthog.capture('stay_signed_in', { source: 'logout_modal' })
@@ -105,6 +114,7 @@ export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalP
             
             {/* Sign Out - Secondary Action */}
             <button
+              ref={signOutRef as React.RefObject<HTMLButtonElement>}
               type="button"
               onClick={handleLogout}
               disabled={isLoggingOut}

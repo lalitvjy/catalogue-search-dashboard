@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react'
 import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
 import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface SearchResult {
   sku_id: string
@@ -43,6 +44,205 @@ const formatPrice = (priceStr: string | null | undefined): string | null => {
   
   const numericValue = match[0]
   return `₹${numericValue}`
+}
+
+// Result Card Component with impression tracking
+interface ResultCardProps {
+  result: SearchResult
+  index: number
+  startIndex: number
+  onImageClick: (result: SearchResult, event: React.MouseEvent) => void
+  onFindSimilar?: (imageUrl: string) => void
+  onToggleInteraction?: (
+    skuId: string,
+    skuCode: string | undefined,
+    fileName: string | undefined,
+    imageUrl: string | undefined,
+    interactionType: 'LIKE' | 'DISLIKE',
+    similarityScore: number,
+    resultPosition: number
+  ) => Promise<void> | void
+  getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
+}
+
+function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultCardProps) {
+  // Memoize properties based on actual values
+  const impressionProperties = React.useMemo(() => ({
+    sku_id: result.sku_id,
+    sku_code: result.sku_code,
+    confidence: result.confidence,
+    position: startIndex + index + 1
+  }), [result.sku_id, result.sku_code, result.confidence, startIndex, index])
+  
+  // Impression tracking for each card
+  const cardRef = useImpressionTracking({
+    eventName: 'imp_product_card_visible',
+    properties: impressionProperties
+  })
+
+  const performToggle = async (
+    result: SearchResult,
+    interactionType: 'LIKE' | 'DISLIKE',
+    position: number
+  ) => {
+    if (!onToggleInteraction) return
+    try {
+      await onToggleInteraction(
+        result.sku_id,
+        result.sku_code,
+        result.file_name,
+        result.image_url,
+        interactionType,
+        result.confidence,
+        position
+      )
+    } catch {
+      // Intentionally silent on error
+    }
+  }
+
+  const descText = String(result.description ?? '')
+  const _attrs = result.attributes as { category?: unknown }
+  const categoryLabel = typeof _attrs.category === 'string' ? (_attrs.category as string) : null
+
+  return (
+    <div 
+      ref={cardRef as React.RefObject<HTMLDivElement>}
+      key={`${result.sku_id}-${index}`} 
+      className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 flex flex-col"
+    >
+      {/* Image Container with Confidence Indicator */}
+      <div 
+        className="relative aspect-square bg-white p-3 cursor-zoom-in hover:bg-gray-50 transition-colors"
+        onClick={(e) => {
+          posthog.capture('zoomed_in', { 
+            sku_id: result.sku_id,
+            sku_code: result.sku_code,
+            confidence: result.confidence,
+            file_name: result.file_name
+          })
+          onImageClick(result, e)
+        }}
+      >
+        {result.image_url ? (
+          <img
+            src={result.image_url}
+            alt={result.sku_code}
+            className="w-full h-full object-contain rounded-lg"
+            style={{ aspectRatio: '1 / 1' }}
+            onError={(e) => {
+              const target = e.currentTarget
+              target.style.display = 'none'
+              const errorDiv = target.nextElementSibling as HTMLElement
+              if (errorDiv) {
+                errorDiv.style.display = 'flex'
+              }
+            }}
+          />
+        ) : null}
+        <div 
+          className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-sm"
+          style={{ 
+            aspectRatio: '1 / 1',
+            display: result.image_url ? 'none' : 'flex'
+          }}
+        >
+          Error Image loading
+        </div>
+        
+        {/* Confidence Badge */}
+        <div className="absolute top-2 right-2">
+          <div className="bg-black/60 rounded-full px-2 py-1 flex items-center justify-center">
+            <span className="text-white text-xs font-medium">
+              {Math.round(result.confidence * 100)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Find Similar Icon Button */}
+        {onFindSimilar && (
+          <div className="absolute top-2 left-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                posthog.capture('search_from_image', { 
+                  sku_id: result.sku_id,
+                  sku_code: result.sku_code,
+                  confidence: result.confidence,
+                  file_name: result.file_name,
+                  image_url: result.image_url
+                })
+                onFindSimilar(result.image_url)
+              }}
+              className="p-1.5 rounded-md transition-colors text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+              title="Find similar products"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+      
+      {/* Content Section */}
+      <div className="px-3 pb-3 flex flex-col flex-1">
+        <div className="flex items-start gap-2 flex-1">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start gap-2 mb-1">
+              <div className="flex-1 min-w-0 font-semibold text-sm text-gray-900 break-all" title={result.sku_code}>
+                {result.sku_code}
+              </div>
+              <CopySku 
+                skuCode={result.sku_code} 
+                className="flex-shrink-0 ml-2"
+                productData={{
+                  sku_id: result.sku_id,
+                  confidence: result.confidence,
+                  file_name: result.file_name
+                }}
+              />
+            </div>
+            {formatPrice(result.price) && (
+              <div className="text-sm font-medium text-gray-700 mb-1">
+                {formatPrice(result.price)}
+              </div>
+            )}
+            <div className="text-[11px] text-gray-500 mb-2 break-all" title={result.file_name}>
+              {result.file_name}
+            </div>
+            {descText.trim() !== '' ? (
+              <div className="text-xs text-gray-700 mb-2 truncate">
+                {descText}
+              </div>
+            ) : null}
+            <div className="mt-1 flex items-center justify-between">
+              <div className="flex-shrink-0">
+                <ActionButtons 
+                  currentInteraction={getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined}
+                  onLike={() => performToggle(result, 'LIKE', startIndex + index + 1)}
+                  onDislike={() => performToggle(result, 'DISLIKE', startIndex + index + 1)}
+                  productData={{
+                    sku_id: result.sku_id,
+                    sku_code: result.sku_code,
+                    confidence: result.confidence,
+                    file_name: result.file_name
+                  }}
+                />
+              </div>
+              <div>
+                {categoryLabel ? (
+                  <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-md font-semibold">
+                    {categoryLabel}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function ResultsGrid({ results, searching, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
@@ -145,30 +345,6 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const paginatedResults = sortedResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
-  
-
-  const performToggle = async (
-    result: SearchResult,
-    interactionType: 'LIKE' | 'DISLIKE',
-    position: number
-  ) => {
-    if (!onToggleInteraction) return
-    try {
-      await onToggleInteraction(
-        result.sku_id,
-        result.sku_code,
-        result.file_name,
-        result.image_url,
-        interactionType,
-        result.confidence,
-        position
-      )
-      // Intentionally no popup/toast notifications after like/dislike
-    } catch {
-      // Intentionally silent on error to avoid popup notifications
-    }
-  }
-
   if (searching) {
     return (
       <div className="text-center py-12">
@@ -201,142 +377,18 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
 
       {/* Results Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {paginatedResults.map((result: SearchResult, index) => { const descText = String(result.description ?? ''); const _attrs = result.attributes as { category?: unknown }; const categoryLabel = typeof _attrs.category === 'string' ? (_attrs.category as string) : null; return (
-        <div 
-          key={`${result.sku_id}-${index}`} 
-          className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 flex flex-col"
-        >
-          {/* Image Container with Confidence Indicator */}
-          <div 
-            className="relative aspect-square bg-white p-3 cursor-zoom-in hover:bg-gray-50 transition-colors"
-            onClick={(e) => handleImageClick(result, e)}
-          >
-            {result.image_url ? (
-              <img
-                src={result.image_url}
-                alt={result.sku_code}
-                className="w-full h-full object-contain rounded-lg"
-                style={{ aspectRatio: '1 / 1' }}
-                onError={(e) => {
-                  const target = e.currentTarget
-                  target.style.display = 'none'
-                  const errorDiv = target.nextElementSibling as HTMLElement
-                  if (errorDiv) {
-                    errorDiv.style.display = 'flex'
-                  }
-                }}
-              />
-            ) : null}
-            <div 
-              className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-sm"
-              style={{ 
-                aspectRatio: '1 / 1',
-                display: result.image_url ? 'none' : 'flex'
-              }}
-            >
-              Error Image loading
-            </div>
-            
-            {/* Confidence Badge */}
-            <div className="absolute top-2 right-2">
-              <div className="bg-black/60 rounded-full px-2 py-1 flex items-center justify-center">
-                <span className="text-white text-xs font-medium">
-                  {Math.round(result.confidence * 100)}%
-                </span>
-              </div>
-            </div>
-
-            {/* Find Similar Icon Button */}
-            {onFindSimilar && (
-              <div className="absolute top-2 left-2">
-                <button
-                  onClick={() => {
-                    posthog.capture('search_from_image', { 
-                      sku_id: result.sku_id,
-                      sku_code: result.sku_code,
-                      confidence: result.confidence,
-                      file_name: result.file_name,
-                      image_url: result.image_url
-                    })
-                    onFindSimilar(result.image_url)
-                  }}
-                  className="p-1.5 rounded-md transition-colors text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                  title="Find similar products"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
-              </div>
-            )}
-
-          </div>
-          
-          {/* Content Section - Flex to push button to bottom */}
-          <div className="px-3 pb-3 flex flex-col flex-1">
-            {/* Product Info Row */}
-            <div className="flex items-start gap-2 flex-1">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start gap-2 mb-1">
-                  <div className="flex-1 min-w-0 font-semibold text-sm text-gray-900 break-all" title={result.sku_code}>
-                    {result.sku_code}
-                  </div>
-                  <CopySku 
-                    skuCode={result.sku_code} 
-                    className="flex-shrink-0 ml-2"
-                    productData={{
-                      sku_id: result.sku_id,
-                      confidence: result.confidence,
-                      file_name: result.file_name
-                    }}
-                  />
-                </div>
-                {/* Price - show below SKU code if available */}
-                {formatPrice(result.price) && (
-                  <div className="text-sm font-medium text-gray-700 mb-1">
-                    {formatPrice(result.price)}
-                  </div>
-                )}
-                {/* File name - show full, allow wrapping */}
-                <div className="text-[11px] text-gray-500 mb-2 break-all" title={result.file_name}>
-                  {result.file_name}
-                </div>
-                {/* Description - only render if present */}
-                {descText.trim() !== '' ? (
-                  <div className="text-xs text-gray-700 mb-2 truncate">
-                    {descText}
-                  </div>
-                ) : null}
-                {/* Category + Actions Row */}
-                <div className="mt-1 flex items-center justify-between">
-                  <div className="flex-shrink-0">
-                    <ActionButtons 
-                    currentInteraction={getInteractionForSku ? getInteractionForSku(result.sku_id) : undefined}
-                    onLike={() => performToggle(result, 'LIKE', startIndex + index + 1)}
-                    onDislike={() => performToggle(result, 'DISLIKE', startIndex + index + 1)}
-                    productData={{
-                      sku_id: result.sku_id,
-                      sku_code: result.sku_code,
-                      confidence: result.confidence,
-                      file_name: result.file_name
-                    }}
-                    />
-                  </div>
-                  <div>
-                    {categoryLabel ? (
-                      <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-md font-semibold">
-                        {categoryLabel}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-          </div>
-        </div>
-          )
-        })}
+        {paginatedResults.map((result: SearchResult, index) => (
+          <ResultCard
+            key={`${result.sku_id}-${index}`}
+            result={result}
+            index={index}
+            startIndex={startIndex}
+            onImageClick={handleImageClick}
+            onFindSimilar={onFindSimilar}
+            onToggleInteraction={onToggleInteraction}
+            getInteractionForSku={getInteractionForSku}
+          />
+        ))}
       </div>
 
       {/* Pagination Controls */}

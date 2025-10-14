@@ -1,7 +1,9 @@
 'use client'
+import { useMemo } from 'react'
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline'
 import { HandThumbUpIcon as HandThumbUpSolid, HandThumbDownIcon as HandThumbDownSolid } from '@heroicons/react/24/solid'
 import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface ActionButtonsProps {
   className?: string
@@ -29,6 +31,19 @@ export default function ActionButtons({
   const likeState: LikeState = 
     currentInteraction === 'LIKE' ? 'liked' : 
     currentInteraction === 'DISLIKE' ? 'disliked' : 'none'
+  
+  // Memoize properties based on actual values
+  const impressionProperties = useMemo(() => ({ ...productData }), [productData])
+  
+  // Impression tracking for action buttons
+  const likeButtonRef = useImpressionTracking({
+    eventName: 'imp_liked',
+    properties: impressionProperties
+  })
+  const dislikeButtonRef = useImpressionTracking({
+    eventName: 'imp_disliked',
+    properties: impressionProperties
+  })
 
   const handleLike = () => {
     posthog.capture('liked', {
@@ -48,6 +63,7 @@ export default function ActionButtons({
     <div className={`flex items-center space-x-0.5 ${className}`}>
       {/* Like Button */}
       <button
+        ref={likeButtonRef as React.RefObject<HTMLButtonElement>}
         onClick={handleLike}
         className={`p-1.5 rounded-md transition-colors ${
           likeState === 'liked'
@@ -65,6 +81,7 @@ export default function ActionButtons({
 
       {/* Dislike Button */}
       <button
+        ref={dislikeButtonRef as React.RefObject<HTMLButtonElement>}
         onClick={handleDislike}
         className={`p-1.5 rounded-md transition-colors ${
           likeState === 'disliked'

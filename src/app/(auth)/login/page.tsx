@@ -1,9 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -12,6 +13,17 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  
+  // Memoize properties to prevent recreation on every render
+  const signInProperties = useMemo(() => ({ method: 'credentials' }), [])
+  const rememberMeProperties = useMemo(() => ({ source: 'login_page' }), [])
+  
+  // Impression tracking for login page elements
+  const signInButtonRef = useImpressionTracking({ eventName: 'imp_sign_in', properties: signInProperties })
+  const googleSignInRef = useImpressionTracking({ eventName: 'imp_sign_in_with_google' })
+  const microsoftSignInRef = useImpressionTracking({ eventName: 'imp_sign_in_with_ms' })
+  const rememberMeRef = useImpressionTracking({ eventName: 'imp_remember_me', properties: rememberMeProperties })
+  const signUpLinkRef = useImpressionTracking({ eventName: 'imp_sign_up' })
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -110,6 +122,7 @@ export default function Login() {
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
+                  ref={rememberMeRef as React.RefObject<HTMLInputElement>}
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
@@ -118,7 +131,7 @@ export default function Login() {
                     const checked = e.target.checked
                     setRememberMe(checked)
                     if (checked) {
-                      posthog.capture('stay_signed_in', { source: 'login_page' })
+                      posthog.capture('remember_me', { source: 'login_page' })
                     }
                   }}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
@@ -139,6 +152,7 @@ export default function Login() {
 
             <div>
               <button
+                ref={signInButtonRef as React.RefObject<HTMLButtonElement>}
                 type="submit"
                 disabled={isLoading}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
@@ -160,6 +174,7 @@ export default function Login() {
 
             <div className="mt-6 grid grid-cols-1 gap-3">
               <button
+                ref={googleSignInRef as React.RefObject<HTMLButtonElement>}
                 onClick={handleGoogleSignIn}
                 className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
@@ -185,6 +200,7 @@ export default function Login() {
               </button>
               
               <button
+                ref={microsoftSignInRef as React.RefObject<HTMLButtonElement>}
                 onClick={handleMicrosoftSignIn}
                 className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
               >
@@ -201,8 +217,9 @@ export default function Login() {
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link
+                ref={signUpLinkRef as React.RefObject<HTMLAnchorElement>}
                 href="/signup"
                 className="text-blue-600 hover:text-blue-500 font-medium"
                 onClick={() => posthog.capture('sign_up')}
