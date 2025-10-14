@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface SearchResult {
   sku_id: string
@@ -38,6 +39,10 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
   const [hasConfidenceChanged, setHasConfidenceChanged] = useState(false)
   const [hasAnyFilterChanged, setHasAnyFilterChanged] = useState(false)
   const [pendingFilters, setPendingFilters] = useState<Filters>({})
+
+  // Impression refs
+  const confidenceSliderRef = useImpressionTracking({ eventName: 'imp_confidence_filter' })
+  const resultSizeRef = useImpressionTracking({ eventName: 'imp_no_of_results' })
 
   // Update temp confidence when filters change externally
   useEffect(() => {
@@ -305,6 +310,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
           Min Confidence: {tempConfidence > 0 ? (tempConfidence * 100).toFixed(0) + '%' : 'Any'}
         </label>
         <input
+          ref={confidenceSliderRef as React.RefObject<HTMLInputElement>}
           type="range"
           min="0"
           max="1"
@@ -332,6 +338,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
           Number of Results
         </label>
         <select
+          ref={resultSizeRef as React.RefObject<HTMLSelectElement>}
           value={resultSize}
           onChange={(e) => handleResultSizeChange(Number(e.target.value))}
           className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

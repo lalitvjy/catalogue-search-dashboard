@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react'
 import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
 import posthog from 'posthog-js'
-import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface SearchResult {
   sku_id: string
@@ -66,20 +65,6 @@ interface ResultCardProps {
 }
 
 function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultCardProps) {
-  // Memoize properties based on actual values
-  const impressionProperties = React.useMemo(() => ({
-    sku_id: result.sku_id,
-    sku_code: result.sku_code,
-    confidence: result.confidence,
-    position: startIndex + index + 1
-  }), [result.sku_id, result.sku_code, result.confidence, startIndex, index])
-  
-  // Impression tracking for each card
-  const cardRef = useImpressionTracking({
-    eventName: 'imp_product_card_visible',
-    properties: impressionProperties
-  })
-
   const performToggle = async (
     result: SearchResult,
     interactionType: 'LIKE' | 'DISLIKE',
@@ -107,7 +92,6 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
 
   return (
     <div 
-      ref={cardRef as React.RefObject<HTMLDivElement>}
       key={`${result.sku_id}-${index}`} 
       className="group border border-gray-200 rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-lg hover:border-gray-300 transition-all duration-200 flex flex-col"
     >

@@ -63,7 +63,8 @@ export default function SearchPage() {
   const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
   
   // Impression tracking for search page elements
-  const skuSearchRef = useImpressionTracking({ eventName: 'imp_search_with_sku' })
+  const skuSearchMobileRef = useImpressionTracking({ eventName: 'imp_search_with_sku', properties: { placement: 'mobile' }, threshold: 0.1 })
+  const skuSearchDesktopRef = useImpressionTracking({ eventName: 'imp_search_with_sku', properties: { placement: 'desktop' }, threshold: 0.1 })
   const logoutButtonRef = useImpressionTracking({ eventName: 'imp_logout' })
 
   // Reset triggerUrlSearch after it's been used
@@ -298,6 +299,22 @@ export default function SearchPage() {
 
   const handleSearchResults = async (searchResults: SearchResult[]) => {
     setResults(searchResults)
+    
+    // Track search results impression with full response data
+    if (searchResults.length > 0) {
+      posthog.capture('imp_search_results_loaded', {
+        total_results: searchResults.length,
+        results: searchResults.map((result, index) => ({
+          sku_id: result.sku_id,
+          sku_code: result.sku_code,
+          confidence: result.confidence,
+          position: index + 1,
+          file_name: result.file_name,
+          price: result.price,
+          category: result.attributes?.category
+        }))
+      })
+    }
     
     // Create search interaction when we have search results and an uploaded image
     if (searchResults.length > 0 && uploadedImage) {
@@ -547,7 +564,7 @@ export default function SearchPage() {
               <div>
                 <div className="flex gap-2">
                   <input
-                    ref={skuSearchRef as React.RefObject<HTMLInputElement>}
+                    ref={skuSearchMobileRef as React.RefObject<HTMLInputElement>}
                     id="sku-search"
                     type="text"
                     value={skuSearchValue}
@@ -690,7 +707,7 @@ export default function SearchPage() {
                 <div>
                   <div className="flex gap-2">
                     <input
-                      ref={skuSearchRef as React.RefObject<HTMLInputElement>}
+                      ref={skuSearchDesktopRef as React.RefObject<HTMLInputElement>}
                       id="sku-search-desktop"
                       type="text"
                       value={skuSearchValue}
