@@ -493,7 +493,7 @@ export default function SearchPage() {
           {/* SKU/Text Search - Full width on mobile/tablet (conditionally shown) */}
           {showSkuSection && (
             <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
-              <h2 className="text-lg font-semibold mb-4 text-gray-800">Search Input</h2>
+              <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
               <SkuTextSearch
                 onSearchResults={handleSearchResults}
                 onSearching={setSearching}
@@ -614,7 +614,7 @@ export default function SearchPage() {
             {/* SKU/Text Search (conditionally shown) */}
             {showSkuSection && (
               <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h2 className="text-lg font-semibold mb-4 text-gray-800">Search Input</h2>
+                <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
                 <SkuTextSearch
                   onSearchResults={handleSearchResults}
                   onSearching={setSearching}
