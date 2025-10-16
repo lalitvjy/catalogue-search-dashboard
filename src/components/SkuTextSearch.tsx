@@ -246,6 +246,11 @@ export default function SkuTextSearch({
               type="text"
               value={skuValue}
               onChange={(e) => setSkuValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !searching && skuValue.trim()) {
+                  handleSkuSearch()
+                }
+              }}
               placeholder="Enter SKU code..."
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-800 placeholder-gray-500"
               disabled={searching}
@@ -276,6 +281,11 @@ export default function SkuTextSearch({
               type="text"
               value={textValue}
               onChange={(e) => setTextValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !searching && textValue.trim()) {
+                  handleTextSearch()
+                }
+              }}
               placeholder="e.g., gold ring with diamonds"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-800 placeholder-gray-500"
               disabled={searching}
