@@ -30,6 +30,7 @@ interface SkuTextSearchProps {
   ctrstoneWtMin?: number
   ctrstoneWtMax?: number
   resultSize?: number
+  allowedTabs?: string[]
 }
 
 export default function SkuTextSearch({ 
@@ -42,14 +43,28 @@ export default function SkuTextSearch({
   diamondWtMax,
   ctrstoneWtMin,
   ctrstoneWtMax,
-  resultSize
+  resultSize,
+  allowedTabs = ['sku', 'text']
 }: SkuTextSearchProps) {
   const { data: session } = useSession()
-  const [searchMode, setSearchMode] = useState<'sku' | 'text'>('sku')
+  
+  // Determine initial search mode based on allowed tabs
+  const getInitialMode = (): 'sku' | 'text' => {
+    if (allowedTabs.includes('sku')) return 'sku'
+    if (allowedTabs.includes('text')) return 'text'
+    return 'sku' // fallback
+  }
+  
+  const [searchMode, setSearchMode] = useState<'sku' | 'text'>(getInitialMode())
   const [skuValue, setSkuValue] = useState('')
   const [textValue, setTextValue] = useState('')
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Check which tabs should be shown
+  const showSkuTab = allowedTabs.includes('sku')
+  const showTextTab = allowedTabs.includes('text')
+  const showTabToggle = showSkuTab && showTextTab
 
   // Impression tracking for tab buttons
   const skuTabRef = useImpressionTracking({ eventName: 'imp_sku_tab' })
@@ -204,42 +219,44 @@ export default function SkuTextSearch({
         </div>
       )}
 
-      {/* Mode Toggle */}
-      <div className="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-lg">
-        <button
-          ref={skuTabRef as React.RefObject<HTMLButtonElement>}
-          onClick={() => {
-            posthog.capture('sku_tab')
-            setSearchMode('sku')
-            setError(null)
-          }}
-          className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-            searchMode === 'sku'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          SKU
-        </button>
-        <button
-          ref={textTabRef as React.RefObject<HTMLButtonElement>}
-          onClick={() => {
-            posthog.capture('text_tab')
-            setSearchMode('text')
-            setError(null)
-          }}
-          className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-            searchMode === 'text'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Text
-        </button>
-      </div>
+      {/* Mode Toggle - Only show if both tabs are allowed */}
+      {showTabToggle && (
+        <div className="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-lg">
+          <button
+            ref={skuTabRef as React.RefObject<HTMLButtonElement>}
+            onClick={() => {
+              posthog.capture('sku_tab')
+              setSearchMode('sku')
+              setError(null)
+            }}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              searchMode === 'sku'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            SKU
+          </button>
+          <button
+            ref={textTabRef as React.RefObject<HTMLButtonElement>}
+            onClick={() => {
+              posthog.capture('text_tab')
+              setSearchMode('text')
+              setError(null)
+            }}
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              searchMode === 'text'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Text
+          </button>
+        </div>
+      )}
 
-      {/* SKU Mode */}
-      {searchMode === 'sku' && (
+      {/* SKU Mode - Only show if SKU tab is allowed */}
+      {showSkuTab && searchMode === 'sku' && (
         <div ref={skuModeRef as React.RefObject<HTMLDivElement>} className="space-y-3">
           <div className="flex gap-2">
             <input
@@ -273,8 +290,8 @@ export default function SkuTextSearch({
         </div>
       )}
 
-      {/* Text Mode */}
-      {searchMode === 'text' && (
+      {/* Text Mode - Only show if Text tab is allowed */}
+      {showTextTab && searchMode === 'text' && (
         <div ref={textModeRef as React.RefObject<HTMLDivElement>} className="space-y-3">
           <div className="flex gap-2">
             <input

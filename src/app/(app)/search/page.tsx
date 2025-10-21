@@ -51,13 +51,13 @@ export default function SearchPage() {
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
   const [resultSize, setResultSize] = useState<number>(20)
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
-  // Initialize from localStorage if available, otherwise default to false
-  const [showSkuSection, setShowSkuSection] = useState<boolean>(() => {
+  // Initialize from localStorage if available, otherwise default to empty array
+  const [allowedTabs, setAllowedTabs] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
-      const cached = localStorage.getItem('showSkuSection')
-      return cached !== null ? cached === 'true' : false
+      const cached = localStorage.getItem('allowedTabs')
+      return cached !== null ? JSON.parse(cached) : []
     }
-    return false
+    return []
   })
   const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
   
@@ -75,7 +75,7 @@ export default function SearchPage() {
     }
   }, [triggerUrlSearch])
 
-  // Fetch component show configuration after login to decide visibility of SKU section
+  // Fetch component show configuration after login to decide which tabs to show
   useEffect(() => {
     if (status !== 'authenticated') return
     const t0 = performance.now()
@@ -102,34 +102,35 @@ export default function SearchPage() {
         if (!resp.ok) throw new Error('Failed to load component visibility')
         const data = await resp.json()
         const showVal = (data && (data.show ?? data?.data?.show)) as unknown
-        const shouldShow = Array.isArray(showVal)
-          ? showVal.includes('search_with_sku')
-          : typeof showVal === 'string'
-            ? showVal === 'search_with_sku'
-            : !!(showVal && typeof showVal === 'object' && 'search_with_sku' in (showVal as Record<string, unknown>))
+        
+        // Parse the show array to extract 'sku' and 'text' values
+        let tabs: string[] = []
+        if (Array.isArray(showVal)) {
+          tabs = showVal.filter((item: unknown) => item === 'sku' || item === 'text')
+        }
         
         if (!isCancelled) {
-          const newValue = Boolean(shouldShow)
           // Get the current localStorage value
-          const cachedValue = localStorage.getItem('showSkuSection')
-          const cachedBool = cachedValue === 'true'
+          const cachedValue = localStorage.getItem('allowedTabs')
+          const cachedTabs = cachedValue !== null ? JSON.parse(cachedValue) : []
           
           // Update state and localStorage if the value has changed
-          if (cachedValue === null || cachedBool !== newValue) {
-            console.log('[component/show] updating showSkuSection from', cachedBool, 'to', newValue)
-            localStorage.setItem('showSkuSection', String(newValue))
-            setShowSkuSection(newValue)
+          const hasChanged = JSON.stringify(cachedTabs) !== JSON.stringify(tabs)
+          if (cachedValue === null || hasChanged) {
+            console.log('[component/show] updating allowedTabs from', cachedTabs, 'to', tabs)
+            localStorage.setItem('allowedTabs', JSON.stringify(tabs))
+            setAllowedTabs(tabs)
           } else {
-            console.log('[component/show] value unchanged:', newValue)
+            console.log('[component/show] value unchanged:', tabs)
           }
         }
         const tEnd = performance.now()
         console.log('[component/show] total useEffect time', Math.round(tEnd - t0), 'ms')
       } catch {
         if (!isCancelled) {
-          const fallbackValue = false
-          localStorage.setItem('showSkuSection', String(fallbackValue))
-          setShowSkuSection(fallbackValue)
+          const fallbackValue: string[] = []
+          localStorage.setItem('allowedTabs', JSON.stringify(fallbackValue))
+          setAllowedTabs(fallbackValue)
         }
       }
     })()
@@ -491,7 +492,7 @@ export default function SearchPage() {
           </div>
 
           {/* SKU/Text Search - Full width on mobile/tablet (conditionally shown) */}
-          {showSkuSection && (
+          {allowedTabs.length > 0 && (
             <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
               <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
               <SkuTextSearch
@@ -505,6 +506,7 @@ export default function SearchPage() {
                 ctrstoneWtMin={filters.ctrstone_wt_min}
                 ctrstoneWtMax={filters.ctrstone_wt_max}
                 resultSize={resultSize}
+                allowedTabs={allowedTabs}
               />
             </div>
           )}
@@ -612,7 +614,7 @@ export default function SearchPage() {
             </div>
 
             {/* SKU/Text Search (conditionally shown) */}
-            {showSkuSection && (
+            {allowedTabs.length > 0 && (
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
                 <SkuTextSearch
@@ -626,6 +628,7 @@ export default function SearchPage() {
                   ctrstoneWtMin={filters.ctrstone_wt_min}
                   ctrstoneWtMax={filters.ctrstone_wt_max}
                   resultSize={resultSize}
+                  allowedTabs={allowedTabs}
                 />
               </div>
             )}
