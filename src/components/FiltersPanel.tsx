@@ -51,56 +51,19 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
     setHasAnyFilterChanged(false)
   }, [filters.confidence_min])
 
-  // Extract unique tags, diamond_wt, and ctrstone_wt from search results
+  // Extract unique tags from search results
   const facets = useMemo(() => {
     const tags: Record<string, number> = {}
-    const diamondWtValues: number[] = []
-    const ctrstoneWtValues: number[] = []
     
     results.forEach(result => {
       const tag = result.attributes?.tags
-      const diamondWt = result.attributes?.diamond_wt
-      const ctrstoneWt = result.attributes?.ctrstone_wt
       
       if (tag && typeof tag === 'string') {
         tags[tag] = (tags[tag] || 0) + 1
       }
-      
-      if (diamondWt && (typeof diamondWt === 'string' || typeof diamondWt === 'number')) {
-        const diamondWtNum = typeof diamondWt === 'string' ? parseFloat(diamondWt) : diamondWt
-        if (!isNaN(diamondWtNum)) {
-          diamondWtValues.push(diamondWtNum)
-        }
-      }
-      
-      if (ctrstoneWt && (typeof ctrstoneWt === 'string' || typeof ctrstoneWt === 'number')) {
-        const ctrstoneWtNum = typeof ctrstoneWt === 'string' ? parseFloat(ctrstoneWt) : ctrstoneWt
-        if (!isNaN(ctrstoneWtNum)) {
-          ctrstoneWtValues.push(ctrstoneWtNum)
-        }
-      }
     })
     
-    // Calculate min/max values
-    const diamondWtMin = diamondWtValues.length > 0 ? Math.min(...diamondWtValues) : 0
-    const diamondWtMax = diamondWtValues.length > 0 ? Math.max(...diamondWtValues) : 0
-    const ctrstoneWtMin = ctrstoneWtValues.length > 0 ? Math.min(...ctrstoneWtValues) : 0
-    const ctrstoneWtMax = ctrstoneWtValues.length > 0 ? Math.max(...ctrstoneWtValues) : 0
-    
-    // Debug logging
-    if (results.length > 0) {
-      console.log('Sample result attributes:', results[0]?.attributes)
-      console.log('Diamond WT range:', { min: diamondWtMin, max: diamondWtMax, values: diamondWtValues.length })
-      console.log('Center Stone WT range:', { min: ctrstoneWtMin, max: ctrstoneWtMax, values: ctrstoneWtValues.length })
-    }
-    
-    return { 
-      tags, 
-      diamondWtMin, 
-      diamondWtMax, 
-      ctrstoneWtMin, 
-      ctrstoneWtMax 
-    }
+    return { tags }
   }, [results])
 
   const handleFilterChange = (key: keyof Filters, value: string | number | undefined) => {
@@ -108,6 +71,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
     if (value === '' || value === undefined) {
       delete newPendingFilters[key]
     } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (newPendingFilters as any)[key] = value
     }
     setPendingFilters(newPendingFilters)
@@ -230,79 +194,6 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
         </div>
       )}
 
-      {/* Diamond Weight Filter */}
-      {facets.diamondWtMax > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Diamond Weight (Range: {facets.diamondWtMin.toFixed(2)} - {facets.diamondWtMax.toFixed(2)})
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Min</label>
-              <input
-                type="number"
-                step="0.01"
-                min={facets.diamondWtMin}
-                max={facets.diamondWtMax}
-                value={pendingFilters.diamond_wt_min !== undefined ? pendingFilters.diamond_wt_min : (filters.diamond_wt_min || '')}
-                onChange={(e) => handleFilterChange('diamond_wt_min', e.target.value ? parseFloat(e.target.value) : undefined)}
-                placeholder={facets.diamondWtMin.toFixed(2)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Max</label>
-              <input
-                type="number"
-                step="0.01"
-                min={facets.diamondWtMin}
-                max={facets.diamondWtMax}
-                value={pendingFilters.diamond_wt_max !== undefined ? pendingFilters.diamond_wt_max : (filters.diamond_wt_max || '')}
-                onChange={(e) => handleFilterChange('diamond_wt_max', e.target.value ? parseFloat(e.target.value) : undefined)}
-                placeholder={facets.diamondWtMax.toFixed(2)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Center Stone Weight Filter */}
-      {facets.ctrstoneWtMax > 0 && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Center Stone Weight (Range: {facets.ctrstoneWtMin.toFixed(2)} - {facets.ctrstoneWtMax.toFixed(2)})
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Min</label>
-              <input
-                type="number"
-                step="0.01"
-                min={facets.ctrstoneWtMin}
-                max={facets.ctrstoneWtMax}
-                value={pendingFilters.ctrstone_wt_min !== undefined ? pendingFilters.ctrstone_wt_min : (filters.ctrstone_wt_min || '')}
-                onChange={(e) => handleFilterChange('ctrstone_wt_min', e.target.value ? parseFloat(e.target.value) : undefined)}
-                placeholder={facets.ctrstoneWtMin.toFixed(2)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-600 mb-1">Max</label>
-              <input
-                type="number"
-                step="0.01"
-                min={facets.ctrstoneWtMin}
-                max={facets.ctrstoneWtMax}
-                value={pendingFilters.ctrstone_wt_max !== undefined ? pendingFilters.ctrstone_wt_max : (filters.ctrstone_wt_max || '')}
-                onChange={(e) => handleFilterChange('ctrstone_wt_max', e.target.value ? parseFloat(e.target.value) : undefined)}
-                placeholder={facets.ctrstoneWtMax.toFixed(2)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Confidence Threshold */}
       <div>
@@ -361,15 +252,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
               >
                 {key === 'confidence_min' 
                   ? `Min confidence: ${(value * 100).toFixed(0)}%` 
-                  : key === 'diamond_wt_min'
-                    ? `Diamond Weight Min: ${value}`
-                    : key === 'diamond_wt_max'
-                      ? `Diamond Weight Max: ${value}`
-                      : key === 'ctrstone_wt_min'
-                        ? `Center Stone Weight Min: ${value}`
-                        : key === 'ctrstone_wt_max'
-                          ? `Center Stone Weight Max: ${value}`
-                          : `${key}: ${value}`}
+                  : `${key}: ${value}`}
                 <button
                   onClick={() => handleFilterChange(key as keyof Filters, undefined)}
                   className="ml-1 text-blue-600 hover:text-blue-800"

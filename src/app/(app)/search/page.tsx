@@ -88,7 +88,7 @@ export default function SearchPage() {
     let isCancelled = false
     ;(async () => {
       try {
-        const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'http://localhost:8080'
+        const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'https://mirrar-lens-api.mirrar.com'
         const url = `${baseApiUrl}/api/component/show`
         const body = new URLSearchParams({ brand_id: brandId }).toString()
         const fetchStart = performance.now()
