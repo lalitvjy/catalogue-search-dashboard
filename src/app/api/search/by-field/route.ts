@@ -64,7 +64,7 @@ export async function POST(req: Request) {
     })
 
     // Get API URL from environment - use the same pattern as other endpoints
-    const baseApiUrl = process.env.API_SERVER_HOST || 'http://localhost:8080'
+    const baseApiUrl = process.env.API_SERVER_HOST || 'https://mirrar-lens-api.mirrar.com'
     const fieldSearchUrl = `${baseApiUrl}/api/search/by-field`
     
     console.log('🔍 Base API URL:', baseApiUrl)

@@ -160,7 +160,7 @@ export default function SkuTextSearch({
       formData.append('limit', (resultSize || 20).toString())
       formData.append('score_threshold', (scoreThreshold || 0.3).toString())
 
-      const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'http://localhost:8080'
+      const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'https://mirrar-lens-api.mirrar.com'
       const response = await fetch(`${baseApiUrl}/api/search/text`, {
         method: 'POST',
         body: formData,
