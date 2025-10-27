@@ -18,6 +18,7 @@ interface SearchResult {
 interface ResultsGridProps {
   results: SearchResult[]
   searching?: boolean
+  isTextSearch?: boolean
   onFindSimilar?: (imageUrl: string) => void
   onToggleInteraction?: (
     skuId: string,
@@ -62,9 +63,10 @@ interface ResultCardProps {
     resultPosition: number
   ) => Promise<void> | void
   getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
+  isTextSearch?: boolean
 }
 
-function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultCardProps) {
+function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku, isTextSearch }: ResultCardProps) {
   const performToggle = async (
     result: SearchResult,
     interactionType: 'LIKE' | 'DISLIKE',
@@ -134,14 +136,16 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
           Error Image loading
         </div>
         
-        {/* Confidence Badge */}
-        <div className="absolute top-2 right-2">
-          <div className="bg-black/60 rounded-full px-2 py-1 flex items-center justify-center">
-            <span className="text-white text-xs font-medium">
-              {Math.round(result.confidence * 100)}%
-            </span>
+        {/* Confidence Badge - Hide for text search */}
+        {!isTextSearch && (
+          <div className="absolute top-2 right-2">
+            <div className="bg-black/60 rounded-full px-2 py-1 flex items-center justify-center">
+              <span className="text-white text-xs font-medium">
+                {Math.round(result.confidence * 100)}%
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Find Similar Icon Button */}
         {onFindSimilar && (
@@ -229,7 +233,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
   )
 }
 
-export default function ResultsGrid({ results, searching, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
+export default function ResultsGrid({ results, searching, isTextSearch, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
@@ -371,6 +375,7 @@ export default function ResultsGrid({ results, searching, onFindSimilar, onToggl
             onFindSimilar={onFindSimilar}
             onToggleInteraction={onToggleInteraction}
             getInteractionForSku={getInteractionForSku}
+            isTextSearch={isTextSearch}
           />
         ))}
       </div>

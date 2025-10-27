@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import ImageDrop from '@/components/ImageDrop'
@@ -42,6 +42,7 @@ export default function SearchPage() {
   const router = useRouter()
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [results, setResults] = useState<SearchResult[]>([])
+  const [isTextSearch, setIsTextSearch] = useState(false)
   const [filters, setFilters] = useState<Filters>({})
   const [searching, setSearching] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -51,6 +52,9 @@ export default function SearchPage() {
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
   const [resultSize, setResultSize] = useState<number>(20)
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
+  const [lastSkuSearch, setLastSkuSearch] = useState<string | null>(null)
+  const [triggerSkuSearch, setTriggerSkuSearch] = useState<string | null>(null)
+  const [currentSearchMode, setCurrentSearchMode] = useState<'sku' | 'text'>('sku')
   // Initialize from localStorage if available, otherwise default to empty array
   const [allowedTabs, setAllowedTabs] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -64,6 +68,45 @@ export default function SearchPage() {
   // Impression tracking for search page elements
   const logoutButtonRef = useImpressionTracking({ eventName: 'imp_logout' })
 
+  const performSkuSearch = useCallback(async (skuValue: string) => {
+    try {
+      setSearching(true)
+      setError(null)
+
+      const response = await fetch('/api/search/by-field', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sku: skuValue.trim(),
+          limit: resultSize,
+          score_threshold: filters.confidence_min || 0.1
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to search by SKU')
+      }
+
+      const searchResult = await response.json()
+      const results = searchResult.results || []
+      
+      if (results.length > 0) {
+        console.log('✅ SKU Search found', results.length, 'results')
+        setResults(results)
+      } else {
+        setResults([])
+        setError(`No product found with SKU: ${skuValue.trim()}`)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while searching')
+      setResults([])
+    } finally {
+      setSearching(false)
+    }
+  }, [resultSize, filters.confidence_min])
+
   // Reset triggerUrlSearch after it's been used
   useEffect(() => {
     if (triggerUrlSearch) {
@@ -74,6 +117,18 @@ export default function SearchPage() {
       return () => clearTimeout(timer)
     }
   }, [triggerUrlSearch])
+
+  // Handle SKU search trigger
+  useEffect(() => {
+    if (triggerSkuSearch) {
+      performSkuSearch(triggerSkuSearch)
+      // Reset after processing
+      const timer = setTimeout(() => {
+        setTriggerSkuSearch(null)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [triggerSkuSearch, performSkuSearch])
 
   // Fetch component show configuration after login to decide which tabs to show
   useEffect(() => {
@@ -295,8 +350,9 @@ export default function SearchPage() {
     }
   }
 
-  const handleSearchResults = async (searchResults: SearchResult[]) => {
+  const handleSearchResults = async (searchResults: SearchResult[], isText: boolean = false) => {
     setResults(searchResults)
+    setIsTextSearch(isText)
     
     // Track search results impression with full response data
     if (searchResults.length > 0) {
@@ -414,13 +470,17 @@ export default function SearchPage() {
   }
 
   const handleApplyAllFilters = () => {
-    console.log('handleApplyAllFilters called, searchImageUrl:', searchImageUrl, 'resultSize:', resultSize)
+    console.log('handleApplyAllFilters called, searchImageUrl:', searchImageUrl, 'lastSkuSearch:', lastSkuSearch, 'resultSize:', resultSize)
     // If we have a search image URL, re-run the search with current filters and result size
     if (searchImageUrl) {
       console.log('Applying all filters with result size:', resultSize)
       setTriggerSearch(Date.now())
+    } else if (lastSkuSearch) {
+      console.log('Re-running SKU search with filters:', lastSkuSearch)
+      // Trigger SKU search with current filters
+      setTriggerSkuSearch(lastSkuSearch)
     } else {
-      console.log('No searchImageUrl, cannot trigger search')
+      console.log('No search context, cannot trigger search')
     }
   }
 
@@ -491,7 +551,7 @@ export default function SearchPage() {
             />
           </div>
 
-          {/* SKU/Text Search - Full width on mobile/tablet (conditionally shown) */}
+            {/* SKU/Text Search - Full width on mobile/tablet (conditionally shown) */}
           {allowedTabs.length > 0 && (
             <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
               <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
@@ -499,12 +559,9 @@ export default function SearchPage() {
                 onSearchResults={handleSearchResults}
                 onSearching={setSearching}
                 onImageUpload={handleImageUpload}
-                onTriggerUrlSearch={setTriggerUrlSearch}
+                onSkuSearch={(sku) => setLastSkuSearch(sku)}
+                onSearchModeChange={setCurrentSearchMode}
                 scoreThreshold={filters.confidence_min || 0.1}
-                diamondWtMin={filters.diamond_wt_min}
-                diamondWtMax={filters.diamond_wt_max}
-                ctrstoneWtMin={filters.ctrstone_wt_min}
-                ctrstoneWtMax={filters.ctrstone_wt_max}
                 resultSize={resultSize}
                 allowedTabs={allowedTabs}
               />
@@ -549,6 +606,7 @@ export default function SearchPage() {
                 resultSize={resultSize}
                 onResultSizeChange={handleResultSizeChange}
                 onApplyAllFilters={handleApplyAllFilters}
+                hideConfidenceFilter={currentSearchMode === 'sku'}
               />
             </div>
           </div>
@@ -582,6 +640,7 @@ export default function SearchPage() {
             <ResultsGrid 
               results={filteredResults} 
               searching={searching} 
+              isTextSearch={isTextSearch}
               onFindSimilar={handleFindSimilar}
               onToggleInteraction={handleToggleInteraction}
               getInteractionForSku={getInteraction}
@@ -621,12 +680,9 @@ export default function SearchPage() {
                   onSearchResults={handleSearchResults}
                   onSearching={setSearching}
                   onImageUpload={handleImageUpload}
-                  onTriggerUrlSearch={setTriggerUrlSearch}
+                  onSkuSearch={(sku) => setLastSkuSearch(sku)}
+                  onSearchModeChange={setCurrentSearchMode}
                   scoreThreshold={filters.confidence_min || 0.1}
-                  diamondWtMin={filters.diamond_wt_min}
-                  diamondWtMax={filters.diamond_wt_max}
-                  ctrstoneWtMin={filters.ctrstone_wt_min}
-                  ctrstoneWtMax={filters.ctrstone_wt_max}
                   resultSize={resultSize}
                   allowedTabs={allowedTabs}
                 />
@@ -644,6 +700,7 @@ export default function SearchPage() {
                 resultSize={resultSize}
                 onResultSizeChange={handleResultSizeChange}
                 onApplyAllFilters={handleApplyAllFilters}
+                hideConfidenceFilter={currentSearchMode === 'sku'}
               />
             </div>
           </div>
@@ -665,6 +722,7 @@ export default function SearchPage() {
               <ResultsGrid 
                 results={filteredResults} 
                 searching={searching} 
+                isTextSearch={isTextSearch}
                 onFindSimilar={handleFindSimilar}
                 onToggleInteraction={handleToggleInteraction}
                 getInteractionForSku={getInteraction}
