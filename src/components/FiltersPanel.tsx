@@ -32,9 +32,10 @@ interface FiltersPanelProps {
   resultSize?: number
   onResultSizeChange?: (size: number) => void
   onApplyAllFilters?: () => void
+  hideConfidenceFilter?: boolean
 }
 
-export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters }: FiltersPanelProps) {
+export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters, hideConfidenceFilter = false }: FiltersPanelProps) {
   const [tempConfidence, setTempConfidence] = useState<number>(filters.confidence_min || 0)
   const [hasConfidenceChanged, setHasConfidenceChanged] = useState(false)
   const [hasAnyFilterChanged, setHasAnyFilterChanged] = useState(false)
@@ -104,11 +105,17 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
   }, [results])
 
   const handleFilterChange = (key: keyof Filters, value: string | number | undefined) => {
-    const newPendingFilters = { ...pendingFilters }
+    const newPendingFilters: Filters = { ...pendingFilters }
     if (value === '' || value === undefined) {
       delete newPendingFilters[key]
     } else {
-      (newPendingFilters as any)[key] = value
+      if (key === 'tags') {
+        newPendingFilters[key] = value as string
+      } else if (key === 'confidence_min') {
+        newPendingFilters[key] = value as number
+      } else if (key === 'diamond_wt_min' || key === 'diamond_wt_max' || key === 'ctrstone_wt_min' || key === 'ctrstone_wt_max') {
+        newPendingFilters[key] = value as number
+      }
     }
     setPendingFilters(newPendingFilters)
     setHasAnyFilterChanged(true)
@@ -305,32 +312,34 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
       )}
 
       {/* Confidence Threshold */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Min Confidence: {tempConfidence > 0 ? (tempConfidence * 100).toFixed(0) + '%' : 'Any'}
-        </label>
-        <input
-          ref={confidenceSliderRef as React.RefObject<HTMLInputElement>}
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={tempConfidence}
-          onChange={(e) => handleConfidenceSliderChange(parseFloat(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-          style={{
-            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${tempConfidence * 100}%, #e5e7eb ${tempConfidence * 100}%, #e5e7eb 100%)`
-          }}
-        />
-        <div className="flex justify-between text-xs text-gray-500 mt-1">
-          <span>0%</span>
-          <span>25%</span>
-          <span>50%</span>
-          <span>75%</span>
-          <span>100%</span>
+      {!hideConfidenceFilter && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Min Confidence: {tempConfidence > 0 ? (tempConfidence * 100).toFixed(0) + '%' : 'Any'}
+          </label>
+          <input
+            ref={confidenceSliderRef as React.RefObject<HTMLInputElement>}
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={tempConfidence}
+            onChange={(e) => handleConfidenceSliderChange(parseFloat(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+            style={{
+              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${tempConfidence * 100}%, #e5e7eb ${tempConfidence * 100}%, #e5e7eb 100%)`
+            }}
+          />
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>0%</span>
+            <span>25%</span>
+            <span>50%</span>
+            <span>75%</span>
+            <span>100%</span>
+          </div>
+          
         </div>
-        
-      </div>
+      )}
 
       {/* Result Count Selector */}
       <div>

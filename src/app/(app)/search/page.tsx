@@ -54,6 +54,7 @@ export default function SearchPage() {
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
   const [lastSkuSearch, setLastSkuSearch] = useState<string | null>(null)
   const [triggerSkuSearch, setTriggerSkuSearch] = useState<string | null>(null)
+  const [currentSearchMode, setCurrentSearchMode] = useState<'sku' | 'text'>('sku')
   // Initialize from localStorage if available, otherwise default to empty array
   const [allowedTabs, setAllowedTabs] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -550,7 +551,7 @@ export default function SearchPage() {
             />
           </div>
 
-          {/* SKU/Text Search - Full width on mobile/tablet (conditionally shown) */}
+            {/* SKU/Text Search - Full width on mobile/tablet (conditionally shown) */}
           {allowedTabs.length > 0 && (
             <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
               <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
@@ -559,6 +560,7 @@ export default function SearchPage() {
                 onSearching={setSearching}
                 onImageUpload={handleImageUpload}
                 onSkuSearch={(sku) => setLastSkuSearch(sku)}
+                onSearchModeChange={setCurrentSearchMode}
                 scoreThreshold={filters.confidence_min || 0.1}
                 resultSize={resultSize}
                 allowedTabs={allowedTabs}
@@ -604,6 +606,7 @@ export default function SearchPage() {
                 resultSize={resultSize}
                 onResultSizeChange={handleResultSizeChange}
                 onApplyAllFilters={handleApplyAllFilters}
+                hideConfidenceFilter={currentSearchMode === 'sku'}
               />
             </div>
           </div>
@@ -678,6 +681,7 @@ export default function SearchPage() {
                   onSearching={setSearching}
                   onImageUpload={handleImageUpload}
                   onSkuSearch={(sku) => setLastSkuSearch(sku)}
+                  onSearchModeChange={setCurrentSearchMode}
                   scoreThreshold={filters.confidence_min || 0.1}
                   resultSize={resultSize}
                   allowedTabs={allowedTabs}
@@ -696,6 +700,7 @@ export default function SearchPage() {
                 resultSize={resultSize}
                 onResultSizeChange={handleResultSizeChange}
                 onApplyAllFilters={handleApplyAllFilters}
+                hideConfidenceFilter={currentSearchMode === 'sku'}
               />
             </div>
           </div>

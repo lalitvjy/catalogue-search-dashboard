@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import posthog from 'posthog-js'
 import { useImpressionTracking } from '@/hooks/useImpressionTracking'
@@ -24,6 +24,7 @@ interface SkuTextSearchProps {
   onSearching?: (searching: boolean) => void
   onImageUpload?: (imageUrl: string) => void
   onSkuSearch?: (sku: string) => void
+  onSearchModeChange?: (mode: 'sku' | 'text') => void
   scoreThreshold?: number
   resultSize?: number
   allowedTabs?: string[]
@@ -34,6 +35,7 @@ export default function SkuTextSearch({
   onSearching,
   onImageUpload,
   onSkuSearch,
+  onSearchModeChange,
   scoreThreshold,
   resultSize,
   allowedTabs = ['sku', 'text']
@@ -52,6 +54,12 @@ export default function SkuTextSearch({
   const [textValue, setTextValue] = useState('')
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Notify parent of initial mode
+  useEffect(() => {
+    onSearchModeChange?.(searchMode)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   
   // Check which tabs should be shown
   const showSkuTab = allowedTabs.includes('sku')
@@ -222,6 +230,7 @@ export default function SkuTextSearch({
               posthog.capture('sku_tab')
               setSearchMode('sku')
               setError(null)
+              onSearchModeChange?.('sku')
             }}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
               searchMode === 'sku'
@@ -237,6 +246,7 @@ export default function SkuTextSearch({
               posthog.capture('text_tab')
               setSearchMode('text')
               setError(null)
+              onSearchModeChange?.('text')
             }}
             className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
               searchMode === 'text'
