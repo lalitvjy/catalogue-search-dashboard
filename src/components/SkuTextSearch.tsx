@@ -20,15 +20,11 @@ interface SearchResult {
 }
 
 interface SkuTextSearchProps {
-  onSearchResults?: (results: SearchResult[]) => void
+  onSearchResults?: (results: SearchResult[], isTextSearch?: boolean) => void
   onSearching?: (searching: boolean) => void
   onImageUpload?: (imageUrl: string) => void
-  onTriggerUrlSearch?: (url: string) => void
+  onSkuSearch?: (sku: string) => void
   scoreThreshold?: number
-  diamondWtMin?: number
-  diamondWtMax?: number
-  ctrstoneWtMin?: number
-  ctrstoneWtMax?: number
   resultSize?: number
   allowedTabs?: string[]
 }
@@ -37,12 +33,8 @@ export default function SkuTextSearch({
   onSearchResults, 
   onSearching,
   onImageUpload,
-  onTriggerUrlSearch,
+  onSkuSearch,
   scoreThreshold,
-  diamondWtMin,
-  diamondWtMax,
-  ctrstoneWtMin,
-  ctrstoneWtMax,
   resultSize,
   allowedTabs = ['sku', 'text']
 }: SkuTextSearchProps) {
@@ -89,6 +81,9 @@ export default function SkuTextSearch({
     // Clear the uploaded image and results when SKU search starts
     onImageUpload?.('')
     onSearchResults?.([])
+    
+    // Track the SKU search for filter re-application
+    onSkuSearch?.(skuValue.trim())
 
     try {
       const response = await fetch('/api/search/by-field', {
@@ -97,7 +92,9 @@ export default function SkuTextSearch({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sku: skuValue.trim()
+          sku: skuValue.trim(),
+          limit: resultSize,
+          score_threshold: scoreThreshold || 0.1
         }),
       })
 
@@ -107,28 +104,25 @@ export default function SkuTextSearch({
 
       const searchResult = await response.json()
 
-      // Console log the image_url as requested
-      if (searchResult.image_url) {
-        console.log('SKU Search Image URL:', searchResult.image_url)
-      }
-
-      // If SKU was found, trigger URL search
-      if (searchResult.found && searchResult.image_url) {
-        console.log('🔍 Triggering URL search with SKU image...')
-        onTriggerUrlSearch?.(searchResult.image_url)
+      // Handle the results directly (same format as image search)
+      const results = searchResult.results || []
+      
+      if (results.length > 0) {
+        console.log('✅ SKU Search found', results.length, 'results')
+        onSearchResults?.(results, true)
       } else {
         onSearchResults?.([])
         setError(`No product found with SKU: ${skuValue.trim()}`)
-        onSearching?.(false)
       }
 
       // Scroll to top when new results are loaded
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while searching')
-      onSearching?.(false)
+      onSearchResults?.([])
     } finally {
       setSearching(false)
+      onSearching?.(false)
     }
   }
 
@@ -158,7 +152,7 @@ export default function SkuTextSearch({
         formData.append('brand_id', brandId)
       }
       formData.append('limit', (resultSize || 20).toString())
-      formData.append('score_threshold', (scoreThreshold || 0.3).toString())
+      formData.append('score_threshold', (scoreThreshold || 0.1).toString())
 
       const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'http://localhost:8080'
       const response = await fetch(`${baseApiUrl}/api/search/text`, {
@@ -173,7 +167,7 @@ export default function SkuTextSearch({
       const searchResults = await response.json()
       const results = searchResults.results || []
       
-      onSearchResults?.(results)
+      onSearchResults?.(results, true)
 
       if (results.length === 0) {
         setError(`No products found for: "${textValue.trim()}"`)

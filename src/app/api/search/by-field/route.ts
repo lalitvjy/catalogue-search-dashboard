@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   try {
     // Parse JSON body from the request
     const body = await req.json()
-    const { sku, category } = body
+    const { sku, category, limit = 20, score_threshold = 0.1 } = body
     
     // Determine search field and value
     let searchField: string
@@ -65,17 +65,19 @@ export async function POST(req: Request) {
 
     // Get API URL from environment - use the same pattern as other endpoints
     const baseApiUrl = process.env.API_SERVER_HOST || 'http://localhost:8080'
-    const fieldSearchUrl = `${baseApiUrl}/api/search/by-field`
+    const skuSearchUrl = `${baseApiUrl}/api/search/by-field-sql`
     
     console.log('🔍 Base API URL:', baseApiUrl)
-    console.log('🔍 Field Search URL:', fieldSearchUrl)
+    console.log('🔍 SKU Search URL:', skuSearchUrl)
 
     // Create form data for the external API
     const formData = new FormData()
-    formData.append(searchField, searchValue.trim())
+    formData.append('sku', searchValue.trim())
     formData.append('brand_id', brand.id)
+    formData.append('limit', limit.toString())
+    formData.append('score_threshold', score_threshold.toString())
 
-    console.log('Calling mirrAR Lens API for field search...')
+    console.log('Calling mirrAR Lens API for SKU search...')
     
     // Add timeout for reliability
     const controller = new AbortController()
@@ -83,7 +85,7 @@ export async function POST(req: Request) {
     
     let searchResponse: Response
     try {
-      searchResponse = await fetch(fieldSearchUrl, {
+      searchResponse = await fetch(skuSearchUrl, {
         method: 'POST',
         body: formData,
         signal: controller.signal
@@ -92,22 +94,55 @@ export async function POST(req: Request) {
     } catch (fetchError) {
       clearTimeout(timeoutId)
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        throw new Error('Field search request timed out. Please try again.')
+        throw new Error('SKU search request timed out. Please try again.')
       }
       throw fetchError
     }
 
     if (!searchResponse.ok) {
       const errorText = await searchResponse.text()
-      console.error('❌ Field Search API Error:', searchResponse.status, errorText)
-      throw new Error(`Field search failed: ${searchResponse.status} ${searchResponse.statusText}`)
+      console.error('❌ SKU Search API Error:', searchResponse.status, errorText)
+      throw new Error(`SKU search failed: ${searchResponse.status} ${searchResponse.statusText}`)
     }
 
-    const apiResult = await searchResponse.json()
-    console.log('✅ Field Search API Response:', apiResult)
+    const searchResults = await searchResponse.json()
+    console.log('✅ SKU Search API Response:', searchResults)
+    
+    // Transform the results to match our expected format (same as image search)
+    const matches = searchResults.results || searchResults.matches || []
+    
+    // If no real matches, return empty results
+    if (!matches || matches.length === 0) {
+      const tookMs = Date.now() - t0
+      return NextResponse.json({
+        results: [],
+        took_ms: tookMs,
+        total_results: 0
+      })
+    }
+    
+    const results = matches.map((item: Record<string, unknown>, index: number) => {
+      // Use the real data from API response directly
+      const imageUrl = item.public_url || item.url || item.image_url || ''
+      
+      return {
+        sku_id: item.sku_id || `SKU-${index + 1}`,
+        sku_code: item.sku_code || `SKU-${index + 1}`,
+        file_name: item.file_name || 'Unknown',
+        image_url: imageUrl,
+        confidence: item.confidence || 0,
+        description: (item.description as string) || (item.attributes as Record<string, unknown>)?.description || '',
+        price: (item.price as string) || (item.attributes as Record<string, unknown>)?.price as string || null,
+        attributes: {
+          category: (item.category as string) || (item.attributes as Record<string, unknown>)?.category || '',
+          tags: (item.tags as string) || (item.attributes as Record<string, unknown>)?.tags || '',
+          ...(item.attributes as Record<string, unknown>) || {}
+        }
+      }
+    })
 
     const tookMs = Date.now() - t0
-    
+
     // Log the search for analytics
     db.searchLog.create({ 
       data: { 
@@ -115,18 +150,24 @@ export async function POST(req: Request) {
         brandId, 
         queryType, 
         threshold: 0, 
-        topK: 1, 
+        topK: results.length, 
         tookMs, 
         filters: {
           collection: brand.qdrantCollection,
           brand_slug: brand.slug,
-          [searchField]: searchValue.trim()
+          sku: searchValue.trim()
         } 
       } 
     }).catch(() => {})
 
-    // Return the API response directly
-    const response = NextResponse.json(apiResult)
+    // Return the transformed results in the same format as image search
+    // Mark as text search since SKU search returns text-based results
+    const response = NextResponse.json({ 
+      results, 
+      took_ms: tookMs,
+      total_results: results.length,
+      is_text_search: true
+    })
 
     // Add CORS headers
     response.headers.set('Access-Control-Allow-Origin', '*')
@@ -136,9 +177,9 @@ export async function POST(req: Request) {
     return response
 
   } catch (error) {
-    console.error('❌ Field Search Error:', error)
+    console.error('❌ SKU Search Error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
-    return new NextResponse(`Field search failed: ${errorMessage}`, { status: 500 })
+    return new NextResponse(`SKU search failed: ${errorMessage}`, { status: 500 })
   }
 }
 

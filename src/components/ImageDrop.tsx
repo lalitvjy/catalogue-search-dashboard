@@ -25,7 +25,7 @@ interface SearchResult {
 
 interface ImageDropProps {
   onImageUpload: (imageUrl: string) => void
-  onSearchResults?: (results: SearchResult[]) => void
+      onSearchResults?: (results: SearchResult[], isTextSearch?: boolean) => void
   onSearching?: (searching: boolean) => void
   uploadedImage?: string | null
   triggerSearch?: number  // When changed, triggers search for current uploaded image
@@ -112,7 +112,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       const searchResults = await searchResponse.json()
       const results = searchResults.results || []
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       setUploadProgress(100)
     } catch (err) {
       console.error('Cropped image search failed:', err)
@@ -283,7 +283,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       const searchResults = await searchResponse.json()
       const results = searchResults.results || []
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       
     } catch (error) {
       console.error('URL search failed:', error)
@@ -395,7 +395,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setUploadProgress(90)
       
       const results = searchResults.results || []
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       setUploadProgress(100)
       
       
@@ -544,7 +544,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       const results = searchResults.results || []
 
       // Pass results to parent component
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       setUploadProgress(100) // Complete
       
     } catch (error) {
@@ -738,7 +738,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       const results = searchResults.results || []
 
       // Pass results to parent component
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       
     } catch (error) {
       console.error('File search failed:', error)
