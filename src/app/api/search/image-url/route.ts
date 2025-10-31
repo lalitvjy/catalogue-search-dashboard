@@ -38,7 +38,9 @@ export async function POST(req: Request) {
   try {
     // Parse JSON body from the request
     const body = await req.json()
-    const { image_url, limit = 20, score_threshold = 0.1, diamond_wt_min, diamond_wt_max, ctrstone_wt_min, ctrstone_wt_max } = body
+    const { image_url, diamond_wt_min, diamond_wt_max, ctrstone_wt_min, ctrstone_wt_max } = body
+    const limit = 100
+    const score_threshold = body?.score_threshold ?? 0.1
     
     if (!image_url) {
       return new NextResponse('No image URL provided', { status: 400 })

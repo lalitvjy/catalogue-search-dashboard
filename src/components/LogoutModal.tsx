@@ -42,6 +42,8 @@ export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalP
 
   const handleLogout = async () => {
     posthog.capture('sign_out')
+    // Clear identity so the next user doesn't inherit previous identity
+    posthog.reset()
     
     setIsLoggingOut(true)
     try {

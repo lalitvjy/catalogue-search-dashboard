@@ -69,7 +69,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')
-      formData.append('limit', (resultSize || 20).toString())
+      formData.append('limit', (resultSize || 100).toString())
       formData.append('score_threshold', (scoreThreshold || 0.1).toString())
       formData.append('diamond_wt_min', (diamondWtMin || '').toString())
       formData.append('diamond_wt_max', (diamondWtMax || '').toString())
@@ -252,7 +252,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           },
           body: JSON.stringify({
             image_url: url,
-            limit: resultSize || 20,
+            limit: resultSize || 100,
             score_threshold: scoreThreshold || 0.1,
             diamond_wt_min: diamondWtMin || '',
             diamond_wt_max: diamondWtMax || '',
@@ -325,7 +325,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           // Create form data for our API
           const formData = new FormData()
           formData.append('file', file, file.name || 'image.jpg')
-          formData.append('limit', (resultSize || 20).toString())
+          formData.append('limit', (resultSize || 100).toString())
           formData.append('score_threshold', (scoreThreshold || 0.1).toString())
           formData.append('diamond_wt_min', (diamondWtMin || '').toString())
           formData.append('diamond_wt_max', (diamondWtMax || '').toString())
@@ -358,7 +358,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
             },
             body: JSON.stringify({
               image_url: imageUrl,
-              limit: resultSize || 20,
+              limit: resultSize || 100,
               score_threshold: scoreThreshold || 0.1,
               diamond_wt_min: diamondWtMin || '',
               diamond_wt_max: diamondWtMax || '',
@@ -480,7 +480,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       // Create form data for our API
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')
-      formData.append('limit', (resultSize || 20).toString())
+      formData.append('limit', (resultSize || 100).toString())
       formData.append('score_threshold', (scoreThreshold || 0.1).toString())
       formData.append('diamond_wt_min', (diamondWtMin || '').toString())
       formData.append('diamond_wt_max', (diamondWtMax || '').toString())
