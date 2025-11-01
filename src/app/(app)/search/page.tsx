@@ -6,6 +6,7 @@ import ImageDrop from '@/components/ImageDrop'
 import ResultsGrid from '@/components/ResultsGrid'
 import FiltersPanel from '@/components/FiltersPanel'
 import LogoutModal from '@/components/LogoutModal'
+import OpenSparkStudioButton from '@/components/OpenSparkStudioButton'
 import { useSearchInteractions } from '@/hooks/useSearchInteractions'
 
 interface ExtendedSession {
@@ -234,6 +235,7 @@ export default function SearchPage() {
               <span className="text-sm text-gray-600 hidden sm:block">
                 Welcome, {session.user?.email}
               </span>
+              <OpenSparkStudioButton />
               <button
                 onClick={() => setShowLogoutModal(true)}
                 className="px-4 py-2 text-sm bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
