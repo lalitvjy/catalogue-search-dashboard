@@ -38,7 +38,9 @@ export async function POST(req: Request) {
   try {
     // Parse JSON body from the request
     const body = await req.json()
-    const { sku, category, limit = 20, score_threshold = 0.1 } = body
+    const { sku, category } = body
+    const score_threshold = body?.score_threshold ?? 0.1
+    const limit = 100
     
     // Determine search field and value
     let searchField: string

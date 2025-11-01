@@ -50,7 +50,7 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null)
   const [triggerSearch, setTriggerSearch] = useState(0)
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
-  const [resultSize, setResultSize] = useState<number>(20)
+  const [resultSize, setResultSize] = useState<number>(100)
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
   const [lastSkuSearch, setLastSkuSearch] = useState<string | null>(null)
   const [triggerSkuSearch, setTriggerSkuSearch] = useState<string | null>(null)
@@ -594,7 +594,7 @@ export default function SearchPage() {
               <div className="sm:hidden mb-4">
                 <h3 className="font-medium text-gray-900 mb-2">Filters</h3>
                 <div className="text-sm text-gray-700 font-medium mb-4">
-                  Showing {Math.min(1, filteredResults.length)}-{Math.min(20, filteredResults.length)} of {filteredResults.length}
+                  Showing {Math.min(1, filteredResults.length)}-{Math.min(resultSize, filteredResults.length)} of {filteredResults.length}
                 </div>
               </div>
               <FiltersPanel 
@@ -618,7 +618,7 @@ export default function SearchPage() {
               <div className="flex items-center space-x-4">
                 {results.length > 0 && (
                   <span className="text-sm text-gray-700 font-medium">
-                    Showing {Math.min(1, filteredResults.length)}-{Math.min(20, filteredResults.length)} of {filteredResults.length}
+                    Showing {Math.min(1, filteredResults.length)}-{Math.min(resultSize, filteredResults.length)} of {filteredResults.length}
                   </span>
                 )}
                 <div className="flex items-center space-x-2">
@@ -713,7 +713,7 @@ export default function SearchPage() {
                 <div className="flex items-center space-x-4">
                   {results.length > 0 && (
                     <span className="text-sm text-gray-700 font-medium">
-                      Showing {Math.min(1, filteredResults.length)}-{Math.min(20, filteredResults.length)} of {filteredResults.length}
+                      Showing {Math.min(1, filteredResults.length)}-{Math.min(resultSize, filteredResults.length)} of {filteredResults.length}
                     </span>
                   )}
                 </div>
