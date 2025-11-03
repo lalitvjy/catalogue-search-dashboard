@@ -16,6 +16,7 @@ model Brand {
   embedding_model    String?             @default("dinov2")
   skus               Sku[]
   users              User[]
+  searchFeedback     SearchFeedback[]
   searchInteractions SearchInteraction[]
 }
 
@@ -26,11 +27,12 @@ model User {
   googleSub           String?
   microsoftSub        String?
   brandId             String?
-  role                UserRole             @default(VIEWER)
+  role                UserRole?            @default(VIEWER)
   createdAt           DateTime             @default(now())
   name                String?
   passwordResetTokens PasswordResetToken[]
   brand               Brand?               @relation(fields: [brandId], references: [id])
+  searchFeedback      SearchFeedback[]
   searchInteractions  SearchInteraction[]
 }
 
@@ -87,6 +89,47 @@ model SearchLog {
   tookMs    Int
   filters   Json?
   createdAt DateTime @default(now())
+}
+
+model SearchFeedback {
+  id             String   @id
+  userId         String
+  brandId        String
+  inputImageUrl  String
+  resultImageUrl String
+  resultSkuId    String
+  resultSkuCode  String
+  confidence     Float
+  userFeedback   Boolean
+  feedbackReason String?
+  createdAt      DateTime @default(now())
+  brand          Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([brandId, createdAt])
+  @@index([confidence, userFeedback])
+  @@index([resultSkuId])
+  @@index([userId, createdAt])
+}
+
+model RequestLog {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  brandId         String    @map("brand_id") @db.VarChar(255)
+  endpoint        String    @db.VarChar(255)
+  method          String    @db.VarChar(10)
+  requestParams   Json      @map("request_params") @default("{}")
+  responseStatus  Int       @map("response_status")
+  responseTimeMs  Decimal   @map("response_time_ms") @db.Decimal(10, 3)
+  timestamp       DateTime? @default(now()) @db.Timestamptz(6)
+  userIp          String?   @map("user_ip") @db.VarChar(45)
+  userAgent       String?   @map("user_agent")
+  errorMessage    String?   @map("error_message")
+  createdAt       DateTime? @map("created_at") @default(now()) @db.Timestamptz(6)
+
+  @@map("request_logs")
+  @@index([brandId], map: "idx_request_logs_brand_id")
+  @@index([endpoint], map: "idx_request_logs_endpoint")
+  @@index([timestamp], map: "idx_request_logs_timestamp")
 }
 
 model SearchInteraction {

@@ -12,7 +12,7 @@ The search API automatically scopes all searches to the user's assigned brand co
 ## How It Works
 
 ### 1. User Authentication & Brand Assignment
-When a user logs in, they are assigned to a specific brand:
+When a user logs in, they are assigned to a specific brand: -
 ```typescript
 // User session contains brand information
 const session = await getServerSession(authOptions)

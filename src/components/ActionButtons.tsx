@@ -1,12 +1,19 @@
 'use client'
 import { HandThumbUpIcon, HandThumbDownIcon } from '@heroicons/react/24/outline'
 import { HandThumbUpIcon as HandThumbUpSolid, HandThumbDownIcon as HandThumbDownSolid } from '@heroicons/react/24/solid'
+import posthog from 'posthog-js'
 
 interface ActionButtonsProps {
   className?: string
   currentInteraction?: 'LIKE' | 'DISLIKE' | null
   onLike?: () => void
   onDislike?: () => void
+  productData?: {
+    sku_id?: string
+    sku_code?: string
+    confidence?: number
+    file_name?: string
+  }
 }
 
 type LikeState = 'none' | 'liked' | 'disliked'
@@ -15,18 +22,26 @@ export default function ActionButtons({
   className = '', 
   currentInteraction,
   onLike, 
-  onDislike 
+  onDislike,
+  productData
 }: ActionButtonsProps) {
   // Convert external interaction state to internal state
   const likeState: LikeState = 
     currentInteraction === 'LIKE' ? 'liked' : 
     currentInteraction === 'DISLIKE' ? 'disliked' : 'none'
+  
 
   const handleLike = () => {
+    posthog.capture('liked', {
+      ...productData
+    })
     onLike?.()
   }
 
   const handleDislike = () => {
+    posthog.capture('disliked', {
+      ...productData
+    })
     onDislike?.()
   }
 
@@ -37,7 +52,7 @@ export default function ActionButtons({
         onClick={handleLike}
         className={`p-1.5 rounded-md transition-colors ${
           likeState === 'liked'
-            ? 'text-red-600 hover:text-red-700 bg-red-50'
+            ? 'text-green-600 hover:text-green-700 bg-green-50'
             : 'text-gray-600 hover:text-green-600 hover:bg-green-50'
         }`}
         title={likeState === 'liked' ? 'Unlike' : 'Like this product'}

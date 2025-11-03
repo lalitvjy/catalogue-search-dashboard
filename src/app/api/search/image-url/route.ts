@@ -38,7 +38,9 @@ export async function POST(req: Request) {
   try {
     // Parse JSON body from the request
     const body = await req.json()
-    const { image_url, limit = 20, score_threshold = 0.1, diamond_wt_min, diamond_wt_max, ctrstone_wt_min, ctrstone_wt_max } = body
+    const { image_url, diamond_wt_min, diamond_wt_max, ctrstone_wt_min, ctrstone_wt_max } = body
+    const limit = 100
+    const score_threshold = body?.score_threshold ?? 0.1
     
     if (!image_url) {
       return new NextResponse('No image URL provided', { status: 400 })
@@ -159,6 +161,8 @@ export async function POST(req: Request) {
         console.log('API Response item attributes:', item.attributes)
         console.log('Diamond WT in item:', item.diamond_wt)
         console.log('Center Stone WT in item:', item.ctrstone_wt)
+        console.log('Price in item:', item.price)
+        console.log('Price in attributes:', (item.attributes as Record<string, unknown>)?.price)
       }
       
       // Use the real data from API response directly
@@ -171,6 +175,7 @@ export async function POST(req: Request) {
         image_url: imageUrl,
         confidence: item.confidence || 0,
         description: (item.description as string) || (item.attributes as Record<string, unknown>)?.description || '',
+        price: (item.price as string) || (item.attributes as Record<string, unknown>)?.price as string || null,
         attributes: {
           category: (item.category as string) || (item.attributes as Record<string, unknown>)?.category || '',
           tags: (item.tags as string) || (item.attributes as Record<string, unknown>)?.tags || '',

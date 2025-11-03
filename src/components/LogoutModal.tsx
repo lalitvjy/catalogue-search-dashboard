@@ -1,6 +1,8 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { signOut } from 'next-auth/react'
+import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface LogoutModalProps {
   isOpen: boolean
@@ -10,6 +12,13 @@ interface LogoutModalProps {
 
 export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  
+  // Memoize properties to prevent recreation on every render
+  const staySignedInProps = useMemo(() => ({ source: 'logout_modal' }), [])
+  
+  // Impression tracking for logout modal buttons
+  const staySignedInRef = useImpressionTracking({ eventName: 'imp_stay_signed_in', properties: staySignedInProps })
+  const signOutRef = useImpressionTracking({ eventName: 'imp_sign_out' })
 
   // Handle ESC key press
   useEffect(() => {
@@ -32,6 +41,10 @@ export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalP
   }, [isOpen, isLoggingOut, onClose])
 
   const handleLogout = async () => {
+    posthog.capture('sign_out')
+    // Clear identity so the next user doesn't inherit previous identity
+    posthog.reset()
+    
     setIsLoggingOut(true)
     try {
       await signOut({ 
@@ -90,8 +103,12 @@ export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalP
           <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
             {/* Stay Signed In - Primary Action (Default) */}
             <button
+              ref={staySignedInRef as React.RefObject<HTMLButtonElement>}
               type="button"
-              onClick={onClose}
+              onClick={() => {
+                posthog.capture('stay_signed_in', { source: 'logout_modal' })
+                onClose()
+              }}
               className="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:ml-3 sm:w-auto"
             >
               Stay Signed In
@@ -99,6 +116,7 @@ export default function LogoutModal({ isOpen, onClose, userEmail }: LogoutModalP
             
             {/* Sign Out - Secondary Action */}
             <button
+              ref={signOutRef as React.RefObject<HTMLButtonElement>}
               type="button"
               onClick={handleLogout}
               disabled={isLoggingOut}

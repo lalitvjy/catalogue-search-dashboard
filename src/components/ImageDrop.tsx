@@ -1,7 +1,12 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import ReactCrop, { type Crop } from 'react-image-crop'
 import { useSession } from 'next-auth/react'
+import CropOverlay from '@/components/CropOverlay'
+import { useImageStore } from '@/lib/image-store'
+import { cropFromBlob } from '@/lib/crop'
+import type { CropSelection as LibCropSelection } from '@/lib/crop'
+import posthog from 'posthog-js'
+import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface ExtendedSession {
   brandId?: string
@@ -15,15 +20,17 @@ interface SearchResult {
   confidence: number
   description?: string | null
   attributes: Record<string, unknown>
+  price?: string | null
 }
 
 interface ImageDropProps {
   onImageUpload: (imageUrl: string) => void
-  onSearchResults?: (results: SearchResult[]) => void
+      onSearchResults?: (results: SearchResult[], isTextSearch?: boolean) => void
   onSearching?: (searching: boolean) => void
   uploadedImage?: string | null
   triggerSearch?: number  // When changed, triggers search for current uploaded image
   searchImageUrl?: string | null  // Original image URL to search (not blob URL)
+  triggerUrlSearch?: string | null  // When set to a URL, triggers URL search with that URL
   scoreThreshold?: number  // Score threshold for search
   diamondWtMin?: number  // Diamond weight min filter
   diamondWtMax?: number  // Diamond weight max filter
@@ -32,7 +39,7 @@ interface ImageDropProps {
   resultSize?: number  // Number of results to return
 }
 
-export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, resultSize }: ImageDropProps) {
+export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, triggerUrlSearch, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, resultSize }: ImageDropProps) {
   const { data: session } = useSession()
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -41,9 +48,18 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
   const [imageUrl, setImageUrl] = useState('')
   const [searchMode, setSearchMode] = useState<'upload' | 'url' | 'clipboard'>('upload')
   const [clipboardReady, setClipboardReady] = useState(false)
-  const [crop, setCrop] = useState<Crop | undefined>()
-  const imgRef = useRef<HTMLImageElement | null>(null)
   const cropTimeoutRef = useRef<number | null>(null)
+  const { setFromFile, setFromUrl, originalBlob } = useImageStore()
+  
+  // Impression tracking for upload mode tab buttons
+  const uploadTabRef = useImpressionTracking({ eventName: 'imp_upload_tab' })
+  const urlTabRef = useImpressionTracking({ eventName: 'imp_url_tab' })
+  const pasteTabRef = useImpressionTracking({ eventName: 'imp_paste_tab' })
+  
+  // Impression tracking for upload mode content areas
+  const uploadModeRef = useImpressionTracking({ eventName: 'imp_upload_mode_visible' })
+  const urlModeRef = useImpressionTracking({ eventName: 'imp_url_mode_visible' })
+  const pasteModeRef = useImpressionTracking({ eventName: 'imp_paste_mode_visible' })
 
   const searchWithFile = async (file: File) => {
     try {
@@ -53,7 +69,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')
-      formData.append('limit', (resultSize || 20).toString())
+      formData.append('limit', (resultSize || 100).toString())
       formData.append('score_threshold', (scoreThreshold || 0.1).toString())
       formData.append('diamond_wt_min', (diamondWtMin || '').toString())
       formData.append('diamond_wt_max', (diamondWtMax || '').toString())
@@ -96,7 +112,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       const searchResults = await searchResponse.json()
       const results = searchResults.results || []
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       setUploadProgress(100)
     } catch (err) {
       console.error('Cropped image search failed:', err)
@@ -110,57 +126,30 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     }
   }
 
-  const getCroppedBlob = async (sourceUrl: string, cropRect: Crop): Promise<Blob> => {
-    const sourceBlob = sourceUrl.startsWith('blob:')
-      ? await (await fetch(sourceUrl)).blob()
-      : await (await fetch(sourceUrl, { cache: 'no-store' })).blob()
-
-    const imageObjectUrl = URL.createObjectURL(sourceBlob)
-    try {
-      const imageEl = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image()
-        img.onload = () => resolve(img)
-        img.onerror = reject
-        img.src = imageObjectUrl
-      })
-
-      const displayedWidth = imgRef.current?.clientWidth || imageEl.naturalWidth
-      const displayedHeight = imgRef.current?.clientHeight || imageEl.naturalHeight
-      const scaleX = imageEl.naturalWidth / Math.max(1, displayedWidth)
-      const scaleY = imageEl.naturalHeight / Math.max(1, displayedHeight)
-
-      const sx = Math.max(0, Math.floor((cropRect.x || 0) * scaleX))
-      const sy = Math.max(0, Math.floor((cropRect.y || 0) * scaleY))
-      const sWidth = Math.max(1, Math.floor((cropRect.width || 0) * scaleX))
-      const sHeight = Math.max(1, Math.floor((cropRect.height || 0) * scaleY))
-
-      const canvas = document.createElement('canvas')
-      canvas.width = sWidth
-      canvas.height = sHeight
-      const ctx = canvas.getContext('2d')
-      if (!ctx) throw new Error('Canvas not supported')
-      ctx.imageSmoothingQuality = 'high'
-      ctx.drawImage(imageEl, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight)
-
-      const blob: Blob = await new Promise((resolve, reject) => {
-        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Canvas export failed'))), 'image/jpeg', 0.92)
-      })
-      return blob
-    } finally {
-      URL.revokeObjectURL(imageObjectUrl)
-    }
-  }
-
-  const handleCropComplete = (c: Crop) => {
+  const handleCropComplete = (selection: LibCropSelection) => {
     if (cropTimeoutRef.current) {
       window.clearTimeout(cropTimeoutRef.current)
       cropTimeoutRef.current = null
     }
     cropTimeoutRef.current = window.setTimeout(async () => {
-      if (!uploadedImage || !c || (c.width ?? 0) < 5 || (c.height ?? 0) < 5) return
+      if (!uploadedImage || !selection) return
       if (uploading) return
       try {
-        const blob = await getCroppedBlob(uploadedImage, c)
+        let sourceBlob = originalBlob
+        if (!sourceBlob) {
+          const fetched = await fetch(uploadedImage)
+          sourceBlob = await fetched.blob()
+        }
+        const tempUrl = URL.createObjectURL(sourceBlob)
+        const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+          const i = new Image()
+          i.onload = () => resolve(i)
+          i.onerror = reject
+          i.src = tempUrl
+        })
+        URL.revokeObjectURL(tempUrl)
+
+        const blob = await cropFromBlob(sourceBlob, selection, img.naturalWidth, img.naturalHeight)
         const file = new File([blob], 'crop.jpg', { type: blob.type || 'image/jpeg' })
         await searchWithFile(file)
       } catch (e) {
@@ -178,6 +167,16 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       searchForImageUrl(searchImageUrl)
     }
   }, [triggerSearch, searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax])
+
+  // Handle triggering URL search from external source (e.g., SKU search)
+  useEffect(() => {
+    if (triggerUrlSearch) {
+      console.log('🔄 Triggering URL search for:', triggerUrlSearch)
+      setImageUrl(triggerUrlSearch)
+      setSearchMode('url')
+      searchByUrl(triggerUrlSearch)
+    }
+  }, [triggerUrlSearch])
 
   // Global paste event listener when clipboard tab is active
   useEffect(() => {
@@ -217,11 +216,29 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setUploading(true)
       setError(null)
 
-      // Set the URL for display (will show as a placeholder)
+      // Set the URL for display and seed store by fetching once
       onImageUpload(url)
+      try {
+        await setFromUrl(url)
+      } catch {}
       
       // Start the search process
       onSearching?.(true)
+
+      // Upload the input URL image to R2 via server to avoid CORS
+      try {
+        const uploadRes = await fetch('/api/upload/image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: url })
+        })
+        if (uploadRes.ok) {
+          const data = await uploadRes.json()
+          onImageUpload(data.url || url)
+        }
+      } catch (e) {
+        console.warn('R2 upload skipped for URL image:', e)
+      }
 
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
@@ -235,7 +252,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           },
           body: JSON.stringify({
             image_url: url,
-            limit: resultSize || 20,
+            limit: resultSize || 100,
             score_threshold: scoreThreshold || 0.1,
             diamond_wt_min: diamondWtMin || '',
             diamond_wt_max: diamondWtMax || '',
@@ -266,7 +283,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       const searchResults = await searchResponse.json()
       const results = searchResults.results || []
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       
     } catch (error) {
       console.error('URL search failed:', error)
@@ -308,7 +325,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           // Create form data for our API
           const formData = new FormData()
           formData.append('file', file, file.name || 'image.jpg')
-          formData.append('limit', (resultSize || 20).toString())
+          formData.append('limit', (resultSize || 100).toString())
           formData.append('score_threshold', (scoreThreshold || 0.1).toString())
           formData.append('diamond_wt_min', (diamondWtMin || '').toString())
           formData.append('diamond_wt_max', (diamondWtMax || '').toString())
@@ -341,7 +358,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
             },
             body: JSON.stringify({
               image_url: imageUrl,
-              limit: resultSize || 20,
+              limit: resultSize || 100,
               score_threshold: scoreThreshold || 0.1,
               diamond_wt_min: diamondWtMin || '',
               diamond_wt_max: diamondWtMax || '',
@@ -378,7 +395,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       setUploadProgress(90)
       
       const results = searchResults.results || []
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       setUploadProgress(100)
       
       
@@ -434,23 +451,36 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       return
     }
 
+    posthog.capture('upload')
+
     setUploading(true)
     onSearching?.(true)
     setUploadProgress(10) // Initial progress
     
     try {
-      // Create a temporary URL for display FIRST, before API call
+      // Seed global store and create a temporary URL for display
+      setFromFile(file)
       const tempUrl = URL.createObjectURL(file)
-      
-      // Set the uploaded image immediately for display via parent callback
       onImageUpload(tempUrl)
-      setCrop(undefined) // Reset crop area for new image
       setUploadProgress(30) // Image loaded
       
+      // Upload original file to R2 early, so we can log a stable URL
+      try {
+        const fd = new FormData()
+        fd.append('file', file, file.name || 'image.jpg')
+        const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: fd })
+        if (uploadRes.ok) {
+          const data = await uploadRes.json()
+          onImageUpload(data.url || tempUrl)
+        }
+      } catch (e) {
+        console.warn('R2 upload skipped for file image:', e)
+      }
+
       // Create form data for our API
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')
-      formData.append('limit', (resultSize || 20).toString())
+      formData.append('limit', (resultSize || 100).toString())
       formData.append('score_threshold', (scoreThreshold || 0.1).toString())
       formData.append('diamond_wt_min', (diamondWtMin || '').toString())
       formData.append('diamond_wt_max', (diamondWtMax || '').toString())
@@ -514,7 +544,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       const results = searchResults.results || []
 
       // Pass results to parent component
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       setUploadProgress(100) // Complete
       
     } catch (error) {
@@ -550,7 +580,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     setImageUrl('') // Clear URL input
     setSearchMode('upload') // Reset to upload mode
     setClipboardReady(false) // Reset clipboard state
-    setCrop(undefined) // Reset crop area
   }
 
   const handleUrlSearch = async () => {
@@ -567,9 +596,12 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       return
     }
     
-    // Set the image URL for display
+    posthog.capture('url')
+    
     onImageUpload(imageUrl.trim())
-    setCrop(undefined) // Reset crop area for new image
+    try {
+      await setFromUrl(imageUrl.trim())
+    } catch {}
     await searchByUrl(imageUrl.trim())
   }
 
@@ -621,17 +653,29 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       return
     }
 
+    posthog.capture('paste')
+
     setUploading(true)
     onSearching?.(true)
     
     try {
-      // Create a temporary URL for display FIRST, before API call
+      setFromFile(file)
       const tempUrl = URL.createObjectURL(file)
-      
-      // Set the uploaded image immediately for display via parent callback
       onImageUpload(tempUrl)
-      setCrop(undefined) // Reset crop area for new image
       
+      // Upload original clipboard file to R2 early to obtain stable URL
+      try {
+        const fd = new FormData()
+        fd.append('file', file, file.name || 'clipboard-image.jpg')
+        const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: fd })
+        if (uploadRes.ok) {
+          const data = await uploadRes.json()
+          onImageUpload(data.url || tempUrl)
+        }
+      } catch (e) {
+        console.warn('R2 upload skipped for clipboard image:', e)
+      }
+
       // Create form data for our API
       const formData = new FormData()
       formData.append('file', file, file.name || 'image.jpg')
@@ -694,7 +738,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       const results = searchResults.results || []
 
       // Pass results to parent component
-      onSearchResults?.(results)
+      onSearchResults?.(results, false)
       
     } catch (error) {
       console.error('File search failed:', error)
@@ -717,15 +761,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
     return (
       <div className="space-y-4">
         <div className="relative aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 shadow-sm overflow-hidden">
-          <ReactCrop crop={crop} onChange={(c) => setCrop(c)} onComplete={handleCropComplete}>
-            <img
-              src={uploadedImage}
-              alt="Uploaded image"
-              className="w-full h-full object-contain"
-              style={{ aspectRatio: '1 / 1', backgroundColor: '#f3f4f6' }}
-              ref={imgRef}
-            />
-          </ReactCrop>
+          <CropOverlay imageUrl={uploadedImage} onCropEnd={handleCropComplete} />
           <button
             onClick={removeImage}
             className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg"
@@ -741,13 +777,6 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           <p className="text-xs text-gray-500 mt-1">
             Click the × button to remove and upload another
           </p>
-          {uploading && (
-            <div className="mt-2 flex items-center justify-center space-x-2">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-            </div>
-          )}
         </div>
       </div>
     )
@@ -785,7 +814,11 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       {/* Mode Toggle */}
       <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
         <button
-          onClick={() => setSearchMode('upload')}
+          ref={uploadTabRef as React.RefObject<HTMLButtonElement>}
+          onClick={() => {
+            posthog.capture('upload_tab')
+            setSearchMode('upload')
+          }}
           className={`px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
             searchMode === 'upload'
               ? 'bg-white text-gray-900 shadow-sm'
@@ -795,7 +828,11 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           Upload
         </button>
         <button
-          onClick={() => setSearchMode('url')}
+          ref={urlTabRef as React.RefObject<HTMLButtonElement>}
+          onClick={() => {
+            posthog.capture('url_tab')
+            setSearchMode('url')
+          }}
           className={`px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
             searchMode === 'url'
               ? 'bg-white text-gray-900 shadow-sm'
@@ -805,7 +842,11 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           URL
         </button>
         <button
-          onClick={() => setSearchMode('clipboard')}
+          ref={pasteTabRef as React.RefObject<HTMLButtonElement>}
+          onClick={() => {
+            posthog.capture('paste_tab')
+            setSearchMode('clipboard')
+          }}
           className={`px-2 py-2 text-xs sm:text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
             searchMode === 'clipboard'
               ? 'bg-white text-gray-900 shadow-sm'
@@ -819,6 +860,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       {/* Upload Mode */}
       {searchMode === 'upload' && (
         <div
+          ref={uploadModeRef as React.RefObject<HTMLDivElement>}
           className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
             dragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
           }`}
@@ -855,7 +897,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       {/* URL Mode */}
       {searchMode === 'url' && (
-        <div className="space-y-3">
+        <div ref={urlModeRef as React.RefObject<HTMLDivElement>} className="space-y-3">
           <div className="flex space-x-2">
             <input
               type="url"
@@ -881,7 +923,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
       {/* Clipboard Mode */}
       {searchMode === 'clipboard' && (
-        <div className="space-y-3">
+        <div ref={pasteModeRef as React.RefObject<HTMLDivElement>} className="space-y-3">
           <div
             className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
               clipboardReady 
