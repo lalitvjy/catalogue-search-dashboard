@@ -6,7 +6,6 @@ import ImageDrop from '@/components/ImageDrop'
 import ResultsGrid from '@/components/ResultsGrid'
 import FiltersPanel from '@/components/FiltersPanel'
 import LogoutModal from '@/components/LogoutModal'
-import OpenSparkStudioButton from '@/components/OpenSparkStudioButton'
 import SkuTextSearch from '@/components/SkuTextSearch'
 import { useSearchInteractions } from '@/hooks/useSearchInteractions'
 import posthog from 'posthog-js'
@@ -499,7 +498,6 @@ export default function SearchPage() {
               <span className="text-sm text-gray-600 hidden sm:block">
                 Welcome, {session.user?.email}
               </span>
-              <OpenSparkStudioButton />
               <button
                 ref={logoutButtonRef as React.RefObject<HTMLButtonElement>}
                 onClick={() => {
