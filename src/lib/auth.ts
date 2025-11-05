@@ -145,9 +145,7 @@ export const authOptions: NextAuthOptions = {
         if (u) { 
           token.uid = u.id; 
           token.brandId = u.brandId; 
-          token.role = u.role;
-          token.microsoftSub = u.microsoftSub;  // Include Microsoft Sub for SSO
-          token.googleSub = u.googleSub;  // Include Google Sub
+          token.role = u.role 
         }
       }
       
@@ -166,8 +164,6 @@ export const authOptions: NextAuthOptions = {
         ;(session as any).uid = token.uid
         ;(session as any).brandId = token.brandId
         ;(session as any).role = token.role
-        ;(session as any).microsoftSub = token.microsoftSub  // Include for SSO
-        ;(session as any).googleSub = token.googleSub  // Include for SSO
       }
       console.log('🔍 Session callback - Final session:', { uid: (session as any).uid, brandId: (session as any).brandId, role: (session as any).role })
       return session
