@@ -94,7 +94,7 @@ export default function SkuTextSearch({
     onSkuSearch?.(skuValue.trim())
 
     try {
-      const response = await fetch('/api/search/by-field', {
+      const response = await fetch('/api/search/by-field-sql', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

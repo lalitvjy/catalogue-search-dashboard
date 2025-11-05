@@ -89,8 +89,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
   }
 
   const descText = String(result.description ?? '')
-  const _attrs = result.attributes as { category?: unknown }
-  const categoryLabel = typeof _attrs.category === 'string' ? (_attrs.category as string) : null
+  
 
   return (
     <div 
@@ -217,13 +216,6 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
                     file_name: result.file_name
                   }}
                 />
-              </div>
-              <div>
-                {categoryLabel ? (
-                  <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-md font-semibold">
-                    {categoryLabel}
-                  </span>
-                ) : null}
               </div>
             </div>
           </div>
