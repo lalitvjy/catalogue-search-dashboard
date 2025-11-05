@@ -74,7 +74,7 @@ export default function SearchPage() {
       setSearching(true)
       setError(null)
 
-      const response = await fetch('/api/search/by-field', {
+      const response = await fetch('/api/search/by-field-sql', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
