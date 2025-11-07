@@ -68,10 +68,13 @@ export default function SearchPage() {
   // Impression tracking for search page elements
   const logoutButtonRef = useImpressionTracking({ eventName: 'imp_logout' })
 
-  const performSkuSearch = useCallback(async (skuValue: string) => {
+  const performSkuSearch = useCallback(async (skuValue: string, confidenceOverride?: number) => {
     try {
       setSearching(true)
       setError(null)
+
+      // Use override if provided, otherwise use current filters
+      const confidenceToUse = confidenceOverride !== undefined ? confidenceOverride : (filters.confidence_min || 0.1)
 
       const response = await fetch('/api/search/by-field-sql', {
         method: 'POST',
@@ -81,7 +84,7 @@ export default function SearchPage() {
         body: JSON.stringify({
           sku: skuValue.trim(),
           limit: resultSize,
-          score_threshold: filters.confidence_min || 0.1
+          score_threshold: confidenceToUse
         }),
       })
 
@@ -469,16 +472,28 @@ export default function SearchPage() {
     // Don't trigger search immediately - wait for Apply button
   }
 
-  const handleApplyAllFilters = () => {
-    console.log('handleApplyAllFilters called, searchImageUrl:', searchImageUrl, 'lastSkuSearch:', lastSkuSearch, 'resultSize:', resultSize)
-    // If we have a search image URL, re-run the search with current filters and result size
+  const handleApplyAllFilters = (updatedFilters?: Filters) => {
+    console.log('handleApplyAllFilters called, searchImageUrl:', searchImageUrl, 'lastSkuSearch:', lastSkuSearch, 'resultSize:', resultSize, 'updatedFilters:', updatedFilters)
+    
+    // Use updated filters if provided, otherwise use current filters state
+    const filtersToUse = updatedFilters || filters
+    
+    // Update filters state if updatedFilters was provided
+    if (updatedFilters) {
+      setFilters(updatedFilters)
+    }
+    
+    // If we have a search image URL, re-run the search with updated filters and result size
     if (searchImageUrl) {
-      console.log('Applying all filters with result size:', resultSize)
-      setTriggerSearch(Date.now())
+      console.log('Applying all filters with result size:', resultSize, 'confidence_min:', filtersToUse.confidence_min)
+      // Use a small delay to ensure state is updated before triggering search
+      setTimeout(() => {
+        setTriggerSearch(Date.now())
+      }, 0)
     } else if (lastSkuSearch) {
-      console.log('Re-running SKU search with filters:', lastSkuSearch)
-      // Trigger SKU search with current filters
-      setTriggerSkuSearch(lastSkuSearch)
+      console.log('Re-running SKU search with filters:', lastSkuSearch, 'confidence_min:', filtersToUse.confidence_min)
+      // Trigger SKU search with updated confidence value
+      performSkuSearch(lastSkuSearch, filtersToUse.confidence_min)
     } else {
       console.log('No search context, cannot trigger search')
     }

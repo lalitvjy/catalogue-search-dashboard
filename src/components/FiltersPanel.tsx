@@ -31,9 +31,10 @@ interface FiltersPanelProps {
   isSearching?: boolean
   resultSize?: number
   onResultSizeChange?: (size: number) => void
-  onApplyAllFilters?: () => void
+  onApplyAllFilters?: (updatedFilters?: Filters) => void
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters }: FiltersPanelProps) {
   const [tempConfidence, setTempConfidence] = useState<number>(filters.confidence_min || 0)
   const [hasConfidenceChanged, setHasConfidenceChanged] = useState(false)
@@ -121,8 +122,8 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
   }
 
   const handleConfidenceSliderChange = (value: number) => {
-    // Round to nearest 5% (0.05)
-    const roundedValue = Math.round(value / 0.05) * 0.05
+    // Round to 2 decimal places for precision
+    const roundedValue = Math.round(value * 100) / 100
     setTempConfidence(roundedValue)
     setHasConfidenceChanged(roundedValue !== (filters.confidence_min || 0))
     setHasAnyFilterChanged(true)
@@ -140,19 +141,17 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
     
     // Apply confidence filter if it has changed
     if (hasConfidenceChanged) {
-      if (onApplyConfidenceFilter) {
-        onApplyConfidenceFilter(tempConfidence)
-      } else {
-        newFilters.confidence_min = tempConfidence
-      }
+      newFilters.confidence_min = tempConfidence
     }
     
     // Update filters with all changes
     onFiltersChange(newFilters)
     
     // Call parent's apply all filters function to trigger re-search
+    // Pass the updated filters so parent can use the latest values
+    // Don't call onApplyConfidenceFilter here to avoid double-triggering
     if (onApplyAllFilters) {
-      onApplyAllFilters()
+      onApplyAllFilters(newFilters)
     }
     
     // Reset all change flags and pending filters
@@ -248,7 +247,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
           type="range"
           min="0"
           max="1"
-          step="0.05"
+          step="0.01"
           value={tempConfidence}
           onChange={(e) => handleConfidenceSliderChange(parseFloat(e.target.value))}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
