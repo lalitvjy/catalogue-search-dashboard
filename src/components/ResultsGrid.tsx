@@ -182,7 +182,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
         <div className="flex items-start gap-2 flex-1">
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2 mb-1">
-              <div className="flex-1 min-w-0 font-semibold text-sm text-gray-900 truncate" title={result.sku_code}>
+              <div className="flex-1 min-w-0 font-semibold text-sm text-gray-900 break-all" title={result.sku_code}>
                 {result.sku_code}
               </div>
               <CopySku 
