@@ -55,7 +55,6 @@ export default function SearchPage() {
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
   const [lastSkuSearch, setLastSkuSearch] = useState<string | null>(null)
   const [triggerSkuSearch, setTriggerSkuSearch] = useState<string | null>(null)
-  const [currentSearchMode, setCurrentSearchMode] = useState<'sku' | 'text'>('sku')
   // Initialize from localStorage if available, otherwise default to empty array
   const [allowedTabs, setAllowedTabs] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -562,7 +561,6 @@ export default function SearchPage() {
                 onSearching={setSearching}
                 onImageUpload={handleImageUpload}
                 onSkuSearch={(sku) => setLastSkuSearch(sku)}
-                onSearchModeChange={setCurrentSearchMode}
                 scoreThreshold={filters.confidence_min || 0.1}
                 resultSize={resultSize}
                 allowedTabs={allowedTabs}
@@ -608,7 +606,6 @@ export default function SearchPage() {
                 resultSize={resultSize}
                 onResultSizeChange={handleResultSizeChange}
                 onApplyAllFilters={handleApplyAllFilters}
-                hideConfidenceFilter={currentSearchMode === 'sku'}
               />
             </div>
           </div>
@@ -683,7 +680,6 @@ export default function SearchPage() {
                   onSearching={setSearching}
                   onImageUpload={handleImageUpload}
                   onSkuSearch={(sku) => setLastSkuSearch(sku)}
-                  onSearchModeChange={setCurrentSearchMode}
                   scoreThreshold={filters.confidence_min || 0.1}
                   resultSize={resultSize}
                   allowedTabs={allowedTabs}
@@ -702,7 +698,6 @@ export default function SearchPage() {
                 resultSize={resultSize}
                 onResultSizeChange={handleResultSizeChange}
                 onApplyAllFilters={handleApplyAllFilters}
-                hideConfidenceFilter={currentSearchMode === 'sku'}
               />
             </div>
           </div>
