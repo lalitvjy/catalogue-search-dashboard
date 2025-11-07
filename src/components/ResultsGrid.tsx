@@ -64,9 +64,13 @@ interface ResultCardProps {
   ) => Promise<void> | void
   getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
   isTextSearch?: boolean
+  duplicatesCount?: number
+  duplicatesExpanded?: boolean
+  onToggleDuplicates?: () => void
+  isDuplicate?: boolean
 }
 
-function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku, isTextSearch }: ResultCardProps) {
+function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku, isTextSearch, duplicatesCount = 0, duplicatesExpanded = false, onToggleDuplicates, isDuplicate = false }: ResultCardProps) {
   const performToggle = async (
     result: SearchResult,
     interactionType: 'LIKE' | 'DISLIKE',
@@ -178,7 +182,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
         <div className="flex items-start gap-2 flex-1">
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2 mb-1">
-              <div className="flex-1 min-w-0 font-semibold text-sm text-gray-900 break-all" title={result.sku_code}>
+              <div className="flex-1 min-w-0 font-semibold text-sm text-gray-900 truncate" title={result.sku_code}>
                 {result.sku_code}
               </div>
               <CopySku 
@@ -196,7 +200,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
                 {formatPrice(result.price)}
               </div>
             )}
-            <div className="text-[11px] text-gray-500 mb-2 break-all" title={result.file_name}>
+            <div className="text-[11px] text-gray-500 mb-2 truncate" title={result.file_name}>
               {result.file_name}
             </div>
             {descText.trim() !== '' ? (
@@ -218,10 +222,37 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
                   }}
                 />
               </div>
+              {duplicatesCount > 0 && (
+                <button
+                  type="button"
+                  title={duplicatesExpanded ? `Hide duplicates for ${result.sku_code}` : `View ${duplicatesCount} more for ${result.sku_code}`}
+                  className="ml-2 text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    if (onToggleDuplicates) onToggleDuplicates()
+                  }}
+                >
+                  {duplicatesExpanded ? 'Hide' : `${duplicatesCount} more >`}
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Simple mount animation wrapper to make elements appear from the left (parent side)
+function AnimatedWrapper({ children, delayMs = 0 }: { children: React.ReactNode; delayMs?: number }) {
+  const [entered, setEntered] = useState(false)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setEntered(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  return (
+    <div className={`transform transition-all duration-1000 linear ${entered ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 -translate-x-4 scale-95 origin-left'}`} style={{ transitionDelay: `${delayMs}ms` }}>
+      {children}
     </div>
   )
 }
@@ -232,6 +263,7 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
   const [showPopup, setShowPopup] = useState(false)
   const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
   const [popupTranslate, setPopupTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [expandedSkus, setExpandedSkus] = useState<Set<string>>(new Set())
 
   // Reset to first page when results change
   useEffect(() => {
@@ -321,10 +353,31 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
   // Sort results by confidence (high to low)
   const sortedResults = [...results].sort((a, b) => b.confidence - a.confidence)
 
-  // Paginate results
-  const totalPages = Math.ceil(sortedResults.length / ITEMS_PER_PAGE)
+  // Group by sku_code so only the first item per SKU is shown in grid
+  const skuToGroup = new Map<string, { primary: SearchResult; duplicates: SearchResult[] }>()
+  for (const item of sortedResults) {
+    const key = item.sku_code
+    const existing = skuToGroup.get(key)
+    if (!existing) {
+      skuToGroup.set(key, { primary: item, duplicates: [] })
+    } else {
+      existing.duplicates.push(item)
+    }
+  }
+
+  const primaryResults: SearchResult[] = []
+  const duplicatesMap = new Map<string, SearchResult[]>()
+  for (const [sku, group] of skuToGroup.entries()) {
+    primaryResults.push(group.primary)
+    if (group.duplicates.length > 0) {
+      duplicatesMap.set(sku, group.duplicates)
+    }
+  }
+
+  // Paginate primary results (one per SKU)
+  const totalPages = Math.ceil(primaryResults.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const paginatedResults = sortedResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  const paginatedResults = primaryResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
   if (searching) {
     return (
@@ -356,21 +409,59 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
   return (
     <div className="space-y-6">
 
-      {/* Results Grid */}
+      {/* Results Grid (unique SKUs) */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {paginatedResults.map((result: SearchResult, index) => (
-          <ResultCard
-            key={`${result.sku_id}-${index}`}
-            result={result}
-            index={index}
-            startIndex={startIndex}
-            onImageClick={handleImageClick}
-            onFindSimilar={onFindSimilar}
-            onToggleInteraction={onToggleInteraction}
-            getInteractionForSku={getInteractionForSku}
-            isTextSearch={isTextSearch}
-          />
-        ))}
+        {paginatedResults.flatMap((result: SearchResult, index) => {
+          const dupes = duplicatesMap.get(result.sku_code) || []
+          const hasDupes = dupes.length > 0
+          const elements: React.ReactNode[] = []
+          elements.push(
+            <div key={`${result.sku_id}-${index}`} className="flex flex-col">
+              <ResultCard
+                result={result}
+                index={index}
+                startIndex={startIndex}
+                onImageClick={handleImageClick}
+                onFindSimilar={onFindSimilar}
+                onToggleInteraction={onToggleInteraction}
+                getInteractionForSku={getInteractionForSku}
+                isTextSearch={isTextSearch}
+                duplicatesCount={hasDupes ? dupes.length : 0}
+                duplicatesExpanded={expandedSkus.has(result.sku_code)}
+                onToggleDuplicates={() => {
+                  setExpandedSkus(prev => {
+                    const next = new Set(prev)
+                    if (next.has(result.sku_code)) next.delete(result.sku_code)
+                    else next.add(result.sku_code)
+                    return next
+                  })
+                }}
+              />
+            </div>
+          )
+          if (expandedSkus.has(result.sku_code) && hasDupes) {
+            dupes.forEach((dup, idx) => {
+              elements.push(
+                <AnimatedWrapper key={`${dup.sku_id}-dup-${idx}`} delayMs={idx * 120}>
+                  <div className="flex flex-col">
+                    <ResultCard
+                      result={dup}
+                      index={index + idx + 1}
+                      startIndex={startIndex}
+                      onImageClick={handleImageClick}
+                      onFindSimilar={onFindSimilar}
+                      onToggleInteraction={onToggleInteraction}
+                      getInteractionForSku={getInteractionForSku}
+                      isTextSearch={isTextSearch}
+                      isDuplicate
+                    />
+                  </div>
+                </AnimatedWrapper>
+              )
+            })
+          }
+          return elements
+        })}
       </div>
 
       {/* Pagination Controls */}
@@ -470,7 +561,8 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
         </div>
       )}
 
-      
+      {/* Inline duplicates are rendered directly in the grid after their parent card */}
+
     </div>
   )
 }
