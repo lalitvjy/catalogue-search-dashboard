@@ -133,10 +133,10 @@ export default function SkuTextSearch({
         throw new Error('Failed to search by SKU')
       }
 
-      const searchResult = await response.json()
+      const searchResult = (await response.json()) as { results?: SearchResult[] }
 
       // Handle the results directly (same format as image search)
-      const results = searchResult.results || []
+      const results = searchResult.results ?? []
       
       if (results.length > 0) {
         console.log('✅ SKU Search found', results.length, 'results')
@@ -200,8 +200,8 @@ export default function SkuTextSearch({
         throw new Error('Failed to search by text')
       }
 
-      const searchResults = await response.json()
-      const results = searchResults.results || []
+      const searchResults = (await response.json()) as { results?: SearchResult[] }
+      const results = searchResults.results ?? []
       
       const normalizedResults = results.map((result) => {
         const description = resolveDescription(result)
