@@ -89,6 +89,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
   }
 
   const descText = String(result.description ?? '')
+  const confidencePercent = Math.floor(result.confidence * 1000) / 10
   
 
   return (
@@ -140,7 +141,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
           <div className="absolute top-2 right-2">
             <div className="bg-black/60 rounded-full px-2 py-1 flex items-center justify-center">
               <span className="text-white text-xs font-medium">
-                {Math.round(result.confidence * 100)}%
+                {confidencePercent.toFixed(1)}%
               </span>
             </div>
           </div>
