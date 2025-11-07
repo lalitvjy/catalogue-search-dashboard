@@ -54,6 +54,29 @@ export default function SkuTextSearch({
   const [textValue, setTextValue] = useState('')
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const resolveDescription = (result: SearchResult): string | null => {
+    if (typeof result.description === 'string' && result.description.trim() !== '') {
+      return result.description
+    }
+
+    const attrs = result.attributes || {}
+
+    const descriptionCandidates: unknown[] = [
+      (attrs as { description?: unknown }).description,
+      (attrs as { style_description?: unknown }).style_description,
+      (attrs as { standard_attributes?: { description?: unknown; style_description?: unknown } }).standard_attributes?.description,
+      (attrs as { standard_attributes?: { description?: unknown; style_description?: unknown } }).standard_attributes?.style_description
+    ]
+
+    for (const candidate of descriptionCandidates) {
+      if (typeof candidate === 'string' && candidate.trim() !== '') {
+        return candidate
+      }
+    }
+
+    return null
+  }
   
   // Notify parent of initial mode
   useEffect(() => {
@@ -110,14 +133,19 @@ export default function SkuTextSearch({
         throw new Error('Failed to search by SKU')
       }
 
-      const searchResult = await response.json()
+      const searchResult = (await response.json()) as { results?: SearchResult[] }
 
       // Handle the results directly (same format as image search)
-      const results = searchResult.results || []
+      const results = searchResult.results ?? []
       
       if (results.length > 0) {
         console.log('✅ SKU Search found', results.length, 'results')
-        onSearchResults?.(results, true)
+        const normalizedResults = results.map((result) => {
+          const description = resolveDescription(result)
+          return description !== null ? { ...result, description } : result
+        })
+
+        onSearchResults?.(normalizedResults, true)
       } else {
         onSearchResults?.([])
         setError(`No product found with SKU: ${skuValue.trim()}`)
@@ -172,12 +200,17 @@ export default function SkuTextSearch({
         throw new Error('Failed to search by text')
       }
 
-      const searchResults = await response.json()
-      const results = searchResults.results || []
+      const searchResults = (await response.json()) as { results?: SearchResult[] }
+      const results = searchResults.results ?? []
       
-      onSearchResults?.(results, true)
+      const normalizedResults = results.map((result) => {
+        const description = resolveDescription(result)
+        return description !== null ? { ...result, description } : result
+      })
 
-      if (results.length === 0) {
+      onSearchResults?.(normalizedResults, true)
+
+      if (normalizedResults.length === 0) {
         setError(`No products found for: "${textValue.trim()}"`)
       }
 

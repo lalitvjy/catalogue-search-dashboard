@@ -32,10 +32,9 @@ interface FiltersPanelProps {
   resultSize?: number
   onResultSizeChange?: (size: number) => void
   onApplyAllFilters?: () => void
-  hideConfidenceFilter?: boolean
 }
 
-export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters, hideConfidenceFilter = false }: FiltersPanelProps) {
+export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters }: FiltersPanelProps) {
   const [tempConfidence, setTempConfidence] = useState<number>(filters.confidence_min || 0)
   const [hasConfidenceChanged, setHasConfidenceChanged] = useState(false)
   const [hasAnyFilterChanged, setHasAnyFilterChanged] = useState(false)
@@ -240,34 +239,32 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
       {/* Diamond Weight and Center Stone Weight filters hidden per requirement */}
 
       {/* Confidence Threshold */}
-      {!hideConfidenceFilter && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Min Confidence: {tempConfidence > 0 ? (tempConfidence * 100).toFixed(0) + '%' : 'Any'}
-          </label>
-          <input
-            ref={confidenceSliderRef as React.RefObject<HTMLInputElement>}
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={tempConfidence}
-            onChange={(e) => handleConfidenceSliderChange(parseFloat(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-            style={{
-              background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${tempConfidence * 100}%, #e5e7eb ${tempConfidence * 100}%, #e5e7eb 100%)`
-            }}
-          />
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>0%</span>
-            <span>25%</span>
-            <span>50%</span>
-            <span>75%</span>
-            <span>100%</span>
-          </div>
-          
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Min Confidence: {tempConfidence > 0 ? (tempConfidence * 100).toFixed(0) + '%' : 'Any'}
+        </label>
+        <input
+          ref={confidenceSliderRef as React.RefObject<HTMLInputElement>}
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          value={tempConfidence}
+          onChange={(e) => handleConfidenceSliderChange(parseFloat(e.target.value))}
+          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+          style={{
+            background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${tempConfidence * 100}%, #e5e7eb ${tempConfidence * 100}%, #e5e7eb 100%)`
+          }}
+        />
+        <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <span>0%</span>
+          <span>25%</span>
+          <span>50%</span>
+          <span>75%</span>
+          <span>100%</span>
         </div>
-      )}
+        
+      </div>
 
       {/* Result Count Selector */}
       <div>
