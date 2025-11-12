@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     // Parse FormData from the request
     const formData = await req.formData()
     const file = formData.get('file') as File
-    const limit = '100'
+    const limit = (formData.get('limit') as string) || '100'
     const scoreThreshold = (formData.get('score_threshold') as string) || '0.1'
     const requestedBrandId = formData.get('brand_id') as string
     const diamondWtMin = formData.get('diamond_wt_min') as string
