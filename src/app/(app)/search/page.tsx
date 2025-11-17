@@ -26,6 +26,8 @@ interface SearchResult {
   description?: string | null
   attributes: Record<string, unknown>
   price?: string | null
+  plp_code?: string
+  grouped_assets?: SearchResult[]
 }
 
 interface Filters {

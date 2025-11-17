@@ -83,10 +83,13 @@ export async function POST(req: Request) {
     formData.append('score_threshold', score_threshold.toString())
     formData.append('category', '')
     formData.append('tags', '')
-    formData.append('diamond_wt_min', diamond_wt_min || '')
-    formData.append('diamond_wt_max', diamond_wt_max || '')
-    formData.append('ctrstone_wt_min', ctrstone_wt_min || '')
-    formData.append('ctrstone_wt_max', ctrstone_wt_max || '')
+    formData.append('group_by', 'true') // Enable grouping by plp_code
+    formData.append('group_by_field', 'plp_code') // Group by plp_code field
+    // Only append weight parameters if they have values (backend expects floats, not empty strings)
+    if (diamond_wt_min) formData.append('diamond_wt_min', diamond_wt_min)
+    if (diamond_wt_max) formData.append('diamond_wt_max', diamond_wt_max)
+    if (ctrstone_wt_min) formData.append('ctrstone_wt_min', ctrstone_wt_min)
+    if (ctrstone_wt_max) formData.append('ctrstone_wt_max', ctrstone_wt_max)
 
     // Use the same endpoint as file upload since we now have a file
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
@@ -163,10 +166,32 @@ export async function POST(req: Request) {
         console.log('Center Stone WT in item:', item.ctrstone_wt)
         console.log('Price in item:', item.price)
         console.log('Price in attributes:', (item.attributes as Record<string, unknown>)?.price)
+        console.log('PLP Code:', item.plp_code)
+        console.log('Grouped Assets:', item.grouped_assets)
       }
       
       // Use the real data from API response directly
       const imageUrl = item.public_url || item.url || item.image_url || ''
+      
+      // Recursively transform grouped_assets if they exist
+      const groupedAssets = Array.isArray(item.grouped_assets) 
+        ? item.grouped_assets.map((groupedItem: Record<string, unknown>) => ({
+            sku_id: groupedItem.sku_id || '',
+            sku_code: groupedItem.sku_code || '',
+            file_name: groupedItem.file_name || 'Unknown',
+            image_url: groupedItem.public_url || groupedItem.url || groupedItem.image_url || '',
+            confidence: groupedItem.confidence || 0,
+            description: (groupedItem.description as string) || (groupedItem.attributes as Record<string, unknown>)?.description || '',
+            price: (groupedItem.price as string) || (groupedItem.attributes as Record<string, unknown>)?.price as string || null,
+            plp_code: (groupedItem.plp_code as string) || null,
+            grouped_assets: null,
+            attributes: {
+              category: (groupedItem.category as string) || (groupedItem.attributes as Record<string, unknown>)?.category || '',
+              tags: (groupedItem.tags as string) || (groupedItem.attributes as Record<string, unknown>)?.tags || '',
+              ...(groupedItem.attributes as Record<string, unknown>) || {}
+            }
+          }))
+        : []
       
       return {
         sku_id: item.sku_id || `SKU-${index + 1}`,
@@ -176,6 +201,8 @@ export async function POST(req: Request) {
         confidence: item.confidence || 0,
         description: (item.description as string) || (item.attributes as Record<string, unknown>)?.description || '',
         price: (item.price as string) || (item.attributes as Record<string, unknown>)?.price as string || null,
+        plp_code: (item.plp_code as string) || null,
+        grouped_assets: groupedAssets,
         attributes: {
           category: (item.category as string) || (item.attributes as Record<string, unknown>)?.category || '',
           tags: (item.tags as string) || (item.attributes as Record<string, unknown>)?.tags || '',
@@ -229,6 +256,7 @@ export async function POST(req: Request) {
 }
 
 // Handle CORS preflight requests
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function OPTIONS(req: Request) {
   return new NextResponse(null, {
     status: 200,
