@@ -1,6 +1,6 @@
 # Collection Scoping for Multi-Tenant Search
 
-This document explains how the search API ensures proper collection scoping to maintain data isolation between brands.
+This document explains how the search API ensures proper collection scoping to maintain data isolation between brands..
 
 ## Overview
 
