@@ -30,6 +30,7 @@ interface ResultsGridProps {
     resultPosition: number
   ) => Promise<void> | void
   getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
+  onPaginationChange?: (currentPage: number, itemsPerPage: number, totalItems: number) => void
 }
 
 const ITEMS_PER_PAGE = 20
@@ -257,7 +258,7 @@ function AnimatedWrapper({ children, delayMs = 0 }: { children: React.ReactNode;
   )
 }
 
-export default function ResultsGrid({ results, searching, isTextSearch, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
+export default function ResultsGrid({ results, searching, isTextSearch, onFindSimilar, onToggleInteraction, getInteractionForSku, onPaginationChange }: ResultsGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
@@ -378,6 +379,14 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
   const totalPages = Math.ceil(primaryResults.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
   const paginatedResults = primaryResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+
+  // Notify parent about pagination changes
+  useEffect(() => {
+    if (onPaginationChange && primaryResults.length > 0) {
+      onPaginationChange(currentPage, ITEMS_PER_PAGE, primaryResults.length)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, primaryResults.length])
 
   if (searching) {
     return (

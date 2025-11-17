@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import ImageDrop from '@/components/ImageDrop'
@@ -55,6 +55,10 @@ export default function SearchPage() {
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
   const [lastSkuSearch, setLastSkuSearch] = useState<string | null>(null)
   const [triggerSkuSearch, setTriggerSkuSearch] = useState<string | null>(null)
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(20)
+  const [totalItems, setTotalItems] = useState(0)
   // Initialize from localStorage if available, otherwise default to empty array
   const [allowedTabs, setAllowedTabs] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -67,6 +71,48 @@ export default function SearchPage() {
   
   // Impression tracking for search page elements
   const logoutButtonRef = useImpressionTracking({ eventName: 'imp_logout' })
+
+  // Filter results based on current filters (memoized to prevent unnecessary re-renders)
+  // Must be defined before any conditional returns to follow Rules of Hooks
+  const filteredResults = useMemo(() => {
+    return results.filter(result => {
+      if (filters.category && result.attributes?.category !== filters.category) {
+        return false
+      }
+      if (filters.tags && result.attributes?.tags !== filters.tags) {
+        return false
+      }
+      // Check diamond weight range
+      if (filters.diamond_wt_min !== undefined || filters.diamond_wt_max !== undefined) {
+        const diamondWt = typeof result.attributes?.diamond_wt === 'number' ? result.attributes.diamond_wt : 
+                         typeof result.attributes?.diamond_wt === 'string' ? parseFloat(result.attributes.diamond_wt) : null
+        if (diamondWt === null || isNaN(diamondWt)) return false
+        
+        if (filters.diamond_wt_min !== undefined && diamondWt < filters.diamond_wt_min) return false
+        if (filters.diamond_wt_max !== undefined && diamondWt > filters.diamond_wt_max) return false
+      }
+      
+      // Check center stone weight range
+      if (filters.ctrstone_wt_min !== undefined || filters.ctrstone_wt_max !== undefined) {
+        const ctrstoneWt = typeof result.attributes?.ctrstone_wt === 'number' ? result.attributes.ctrstone_wt : 
+                          typeof result.attributes?.ctrstone_wt === 'string' ? parseFloat(result.attributes.ctrstone_wt) : null
+        if (ctrstoneWt === null || isNaN(ctrstoneWt)) return false
+        
+        if (filters.ctrstone_wt_min !== undefined && ctrstoneWt < filters.ctrstone_wt_min) return false
+        if (filters.ctrstone_wt_max !== undefined && ctrstoneWt > filters.ctrstone_wt_max) return false
+      }
+      if (filters.confidence_min && result.confidence < filters.confidence_min) {
+        return false
+      }
+      return true
+    })
+  }, [results, filters])
+
+  const handlePaginationChange = useCallback((page: number, perPage: number, total: number) => {
+    setCurrentPage(page)
+    setItemsPerPage(perPage)
+    setTotalItems(total)
+  }, [])
 
   const performSkuSearch = useCallback(async (skuValue: string, confidenceOverride?: number) => {
     try {
@@ -146,7 +192,7 @@ export default function SearchPage() {
     let isCancelled = false
     ;(async () => {
       try {
-        const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'http://localhost:8080'
+        const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'http://localhost:8083'
         const url = `${baseApiUrl}/api/component/show`
         const body = new URLSearchParams({ brand_id: brandId }).toString()
         const fetchStart = performance.now()
@@ -307,40 +353,6 @@ export default function SearchPage() {
     )
   }
 
-  // Filter results based on current filters
-  const filteredResults = results.filter(result => {
-    if (filters.category && result.attributes?.category !== filters.category) {
-      return false
-    }
-    if (filters.tags && result.attributes?.tags !== filters.tags) {
-      return false
-    }
-    // Check diamond weight range
-    if (filters.diamond_wt_min !== undefined || filters.diamond_wt_max !== undefined) {
-      const diamondWt = typeof result.attributes?.diamond_wt === 'number' ? result.attributes.diamond_wt : 
-                       typeof result.attributes?.diamond_wt === 'string' ? parseFloat(result.attributes.diamond_wt) : null
-      if (diamondWt === null || isNaN(diamondWt)) return false
-      
-      if (filters.diamond_wt_min !== undefined && diamondWt < filters.diamond_wt_min) return false
-      if (filters.diamond_wt_max !== undefined && diamondWt > filters.diamond_wt_max) return false
-    }
-    
-    // Check center stone weight range
-    if (filters.ctrstone_wt_min !== undefined || filters.ctrstone_wt_max !== undefined) {
-      const ctrstoneWt = typeof result.attributes?.ctrstone_wt === 'number' ? result.attributes.ctrstone_wt : 
-                        typeof result.attributes?.ctrstone_wt === 'string' ? parseFloat(result.attributes.ctrstone_wt) : null
-      if (ctrstoneWt === null || isNaN(ctrstoneWt)) return false
-      
-      if (filters.ctrstone_wt_min !== undefined && ctrstoneWt < filters.ctrstone_wt_min) return false
-      if (filters.ctrstone_wt_max !== undefined && ctrstoneWt > filters.ctrstone_wt_max) return false
-    }
-    if (filters.confidence_min && result.confidence < filters.confidence_min) {
-      return false
-    }
-    return true
-  })
-  
-
 
 
   const handleImageUpload = (url: string) => {
@@ -472,20 +484,51 @@ export default function SearchPage() {
     // Don't trigger search immediately - wait for Apply button
   }
 
-  const handleApplyAllFilters = (updatedFilters?: Filters) => {
-    console.log('handleApplyAllFilters called, searchImageUrl:', searchImageUrl, 'lastSkuSearch:', lastSkuSearch, 'resultSize:', resultSize, 'updatedFilters:', updatedFilters)
+  const handleResultSizeChangeImmediate = (newSize: number) => {
+    console.log('handleResultSizeChangeImmediate called with:', newSize)
+    
+    posthog.capture('no_of_results', { result_count: newSize })
+    
+    setResultSize(newSize)
+    
+    // Trigger search immediately with the new size
+    if (searchImageUrl) {
+      console.log('Triggering immediate search with new result size:', newSize)
+      // Use setTimeout to ensure state update has been processed
+      setTimeout(() => {
+        setTriggerSearch(Date.now())
+      }, 0)
+    } else if (lastSkuSearch) {
+      console.log('Re-running SKU search immediately with new result size:', newSize)
+      // Use setTimeout to ensure state update
+      setTimeout(() => {
+        performSkuSearch(lastSkuSearch, filters.confidence_min)
+      }, 0)
+    }
+  }
+
+  const handleApplyAllFilters = (updatedFilters?: Filters, newResultSize?: number) => {
+    console.log('handleApplyAllFilters called, searchImageUrl:', searchImageUrl, 'lastSkuSearch:', lastSkuSearch, 'resultSize:', resultSize, 'newResultSize:', newResultSize, 'updatedFilters:', updatedFilters)
     
     // Use updated filters if provided, otherwise use current filters state
     const filtersToUse = updatedFilters || filters
+    
+    // Use new result size if provided, otherwise use current resultSize state
+    const resultSizeToUse = newResultSize !== undefined ? newResultSize : resultSize
     
     // Update filters state if updatedFilters was provided
     if (updatedFilters) {
       setFilters(updatedFilters)
     }
     
+    // Update result size state if newResultSize was provided
+    if (newResultSize !== undefined) {
+      setResultSize(newResultSize)
+    }
+    
     // If we have a search image URL, re-run the search with updated filters and result size
     if (searchImageUrl) {
-      console.log('Applying all filters with result size:', resultSize, 'confidence_min:', filtersToUse.confidence_min)
+      console.log('Applying all filters with result size:', resultSizeToUse, 'confidence_min:', filtersToUse.confidence_min)
       // Use a small delay to ensure state is updated before triggering search
       setTimeout(() => {
         setTriggerSearch(Date.now())
@@ -609,7 +652,11 @@ export default function SearchPage() {
               <div className="sm:hidden mb-4">
                 <h3 className="font-medium text-gray-900 mb-2">Filters</h3>
                 <div className="text-sm text-gray-700 font-medium mb-4">
-                  Showing {Math.min(1, filteredResults.length)}-{Math.min(resultSize, filteredResults.length)} of {filteredResults.length}
+                  {filteredResults.length > 0 ? (
+                    <>Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}</>
+                  ) : (
+                    <>No results</>
+                  )}
                 </div>
               </div>
               <FiltersPanel 
@@ -632,7 +679,11 @@ export default function SearchPage() {
               <div className="flex items-center space-x-4">
                 {results.length > 0 && (
                   <span className="text-sm text-gray-700 font-medium">
-                    Showing {Math.min(1, filteredResults.length)}-{Math.min(resultSize, filteredResults.length)} of {filteredResults.length}
+                    {filteredResults.length > 0 ? (
+                      <>Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}</>
+                    ) : (
+                      <>No results</>
+                    )}
                   </span>
                 )}
                 <div className="flex items-center space-x-2">
@@ -640,7 +691,7 @@ export default function SearchPage() {
                   <select
                     id="result-size"
                     value={resultSize}
-                    onChange={(e) => handleResultSizeChange(Number(e.target.value))}
+                    onChange={(e) => handleResultSizeChangeImmediate(Number(e.target.value))}
                     className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value={20}>20</option>
@@ -658,6 +709,7 @@ export default function SearchPage() {
               onFindSimilar={handleFindSimilar}
               onToggleInteraction={handleToggleInteraction}
               getInteractionForSku={getInteraction}
+              onPaginationChange={handlePaginationChange}
             />
           </div>
         </div>
@@ -725,7 +777,11 @@ export default function SearchPage() {
                 <div className="flex items-center space-x-4">
                   {results.length > 0 && (
                     <span className="text-sm text-gray-700 font-medium">
-                      Showing {Math.min(1, filteredResults.length)}-{Math.min(resultSize, filteredResults.length)} of {filteredResults.length}
+                      {filteredResults.length > 0 ? (
+                        <>Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}</>
+                      ) : (
+                        <>No results</>
+                      )}
                     </span>
                   )}
                 </div>
@@ -738,6 +794,7 @@ export default function SearchPage() {
                 onFindSimilar={handleFindSimilar}
                 onToggleInteraction={handleToggleInteraction}
                 getInteractionForSku={getInteraction}
+                onPaginationChange={handlePaginationChange}
               />
             </div>
           </div>
