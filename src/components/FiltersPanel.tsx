@@ -279,6 +279,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
           <option value={20}>20 results</option>
           <option value={40}>40 results</option>
           <option value={100}>100 results</option>
+          <option value={500}>500 results</option>
         </select>
       </div>
 
