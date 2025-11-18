@@ -53,7 +53,7 @@ export default function SearchPage() {
   const [error, setError] = useState<string | null>(null)
   const [triggerSearch, setTriggerSearch] = useState(0)
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
-  const [resultSize, setResultSize] = useState<number>(100)
+  const [resultSize, setResultSize] = useState<number>(500)
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
   const [lastSkuSearch, setLastSkuSearch] = useState<string | null>(null)
   const [triggerSkuSearch, setTriggerSkuSearch] = useState<string | null>(null)
