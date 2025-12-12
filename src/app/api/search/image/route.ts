@@ -96,10 +96,13 @@ export async function POST(req: Request) {
     externalFormData.append('score_threshold', scoreThreshold)
     externalFormData.append('category', category || '') // Use category parameter from request
     externalFormData.append('tags', '')     // Add empty tags parameter
-    externalFormData.append('diamond_wt_min', diamondWtMin || '') // Add diamond weight min parameter
-    externalFormData.append('diamond_wt_max', diamondWtMax || '') // Add diamond weight max parameter
-    externalFormData.append('ctrstone_wt_min', ctrstoneWtMin || '') // Add center stone weight min parameter
-    externalFormData.append('ctrstone_wt_max', ctrstoneWtMax || '') // Add center stone weight max parameter
+    externalFormData.append('group_by', 'true') // Enable grouping by plp_code
+    externalFormData.append('group_by_field', 'plp_code') // Group by plp_code field
+    // Only append weight parameters if they have values (backend expects floats, not empty strings)
+    if (diamondWtMin) externalFormData.append('diamond_wt_min', diamondWtMin)
+    if (diamondWtMax) externalFormData.append('diamond_wt_max', diamondWtMax)
+    if (ctrstoneWtMin) externalFormData.append('ctrstone_wt_min', ctrstoneWtMin)
+    if (ctrstoneWtMax) externalFormData.append('ctrstone_wt_max', ctrstoneWtMax)
 
     // Get API URL first
     const searchApiUrl = process.env.MIRRAR_LENS_API_URL || 'https://mirrar-lens-api-nlontpvsta-uc.a.run.app/api/search/image'
@@ -164,10 +167,6 @@ export async function POST(req: Request) {
     }
     
     const results = matches.map((item: Record<string, unknown>, index: number) => {
-      // Check if this is real data from the API
-      const hasRealSkuId = item.sku_id && typeof item.sku_id === 'string' && item.sku_id !== ''
-      const hasRealConfidence = typeof item.confidence === 'number' && item.confidence > 0
-      
       // Debug logging for first item to see what fields are available
       if (index === 0) {
         console.log('API Response item structure:', Object.keys(item))
@@ -178,11 +177,33 @@ export async function POST(req: Request) {
         console.log('Center Stone WT in attributes:', (item.attributes as Record<string, unknown>)?.ctrstone_wt)
         console.log('Price in item:', item.price)
         console.log('Price in attributes:', (item.attributes as Record<string, unknown>)?.price)
+        console.log('PLP Code:', item.plp_code)
+        console.log('Grouped Assets:', item.grouped_assets)
       }
       
       // Use the real data from API response directly
       // Check for image URL in different possible fields - prioritize public_url first, then url, then image_url
       const imageUrl = item.public_url || item.url || item.image_url || ''
+      
+      // Recursively transform grouped_assets if they exist
+      const groupedAssets = Array.isArray(item.grouped_assets) 
+        ? item.grouped_assets.map((groupedItem: Record<string, unknown>) => ({
+            sku_id: groupedItem.sku_id || '',
+            sku_code: groupedItem.sku_code || '',
+            file_name: groupedItem.file_name || 'Unknown',
+            image_url: groupedItem.public_url || groupedItem.url || groupedItem.image_url || '',
+            confidence: groupedItem.confidence || 0,
+            description: (groupedItem.description as string) || (groupedItem.attributes as Record<string, unknown>)?.description || '',
+            price: (groupedItem.price as string) || (groupedItem.attributes as Record<string, unknown>)?.price as string || null,
+            plp_code: (groupedItem.plp_code as string) || null,
+            grouped_assets: null,
+            attributes: {
+              category: (groupedItem.category as string) || (groupedItem.attributes as Record<string, unknown>)?.category || '',
+              tags: (groupedItem.tags as string) || (groupedItem.attributes as Record<string, unknown>)?.tags || '',
+              ...(groupedItem.attributes as Record<string, unknown>) || {}
+            }
+          }))
+        : []
       
       return {
         sku_id: item.sku_id || `SKU-${index + 1}`,
@@ -192,6 +213,8 @@ export async function POST(req: Request) {
         confidence: item.confidence || 0,
         description: (item.description as string) || (item.attributes as Record<string, unknown>)?.description || '',
         price: (item.price as string) || (item.attributes as Record<string, unknown>)?.price as string || null,
+        plp_code: (item.plp_code as string) || null,
+        grouped_assets: groupedAssets,
         attributes: {
           // Include both top-level and nested attributes
           category: (item.category as string) || (item.attributes as Record<string, unknown>)?.category || '',
@@ -248,6 +271,7 @@ export async function POST(req: Request) {
 }
 
 // Handle CORS preflight requests
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function OPTIONS(req: Request) {
   return new NextResponse(null, {
     status: 200,

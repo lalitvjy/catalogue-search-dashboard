@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react'
 import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
+import GroupedAssetsModal from './GroupedAssetsModal'
 import posthog from 'posthog-js'
 
 interface SearchResult {
@@ -13,6 +14,8 @@ interface SearchResult {
   description?: string | null
   attributes: Record<string, unknown>
   price?: string | null
+  plp_code?: string
+  grouped_assets?: SearchResult[]
 }
 
 interface ResultsGridProps {
@@ -66,12 +69,10 @@ interface ResultCardProps {
   getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
   isTextSearch?: boolean
   duplicatesCount?: number
-  duplicatesExpanded?: boolean
   onToggleDuplicates?: () => void
-  isDuplicate?: boolean
 }
 
-function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku, isTextSearch, duplicatesCount = 0, duplicatesExpanded = false, onToggleDuplicates, isDuplicate = false }: ResultCardProps) {
+function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku, isTextSearch, duplicatesCount = 0, onToggleDuplicates }: ResultCardProps) {
   const performToggle = async (
     result: SearchResult,
     interactionType: 'LIKE' | 'DISLIKE',
@@ -116,6 +117,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
         }}
       >
         {result.image_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={result.image_url}
             alt={result.sku_code}
@@ -226,14 +228,14 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
               {duplicatesCount > 0 && (
                 <button
                   type="button"
-                  title={duplicatesExpanded ? `Hide duplicates for ${result.sku_code}` : `View ${duplicatesCount} more for ${result.sku_code}`}
-                  className="ml-2 text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                  title={`View ${duplicatesCount} more variants for ${result.sku_code}`}
+                  className="ml-2 text-xs text-blue-600 hover:text-blue-700 hover:underline font-medium"
                   onClick={(e) => {
                     e.stopPropagation()
                     if (onToggleDuplicates) onToggleDuplicates()
                   }}
                 >
-                  {duplicatesExpanded ? 'Hide' : `${duplicatesCount} more >`}
+                  {duplicatesCount}+ more
                 </button>
               )}
             </div>
@@ -244,27 +246,14 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
   )
 }
 
-// Simple mount animation wrapper to make elements appear from the left (parent side)
-function AnimatedWrapper({ children, delayMs = 0 }: { children: React.ReactNode; delayMs?: number }) {
-  const [entered, setEntered] = useState(false)
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setEntered(true))
-    return () => cancelAnimationFrame(id)
-  }, [])
-  return (
-    <div className={`transform transition-all duration-1000 linear ${entered ? 'opacity-100 translate-x-0 scale-100' : 'opacity-0 -translate-x-4 scale-95 origin-left'}`} style={{ transitionDelay: `${delayMs}ms` }}>
-      {children}
-    </div>
-  )
-}
-
 export default function ResultsGrid({ results, searching, isTextSearch, onFindSimilar, onToggleInteraction, getInteractionForSku, onPaginationChange }: ResultsGridProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
   const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
   const [popupTranslate, setPopupTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
-  const [expandedSkus, setExpandedSkus] = useState<Set<string>>(new Set())
+  const [showGroupedModal, setShowGroupedModal] = useState(false)
+  const [selectedGroupedResult, setSelectedGroupedResult] = useState<SearchResult | null>(null)
 
   // Reset to first page when results change
   useEffect(() => {
@@ -354,39 +343,19 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
   // Sort results by confidence (high to low)
   const sortedResults = [...results].sort((a, b) => b.confidence - a.confidence)
 
-  // Group by sku_code so only the first item per SKU is shown in grid
-  const skuToGroup = new Map<string, { primary: SearchResult; duplicates: SearchResult[] }>()
-  for (const item of sortedResults) {
-    const key = item.sku_code
-    const existing = skuToGroup.get(key)
-    if (!existing) {
-      skuToGroup.set(key, { primary: item, duplicates: [] })
-    } else {
-      existing.duplicates.push(item)
-    }
-  }
-
-  const primaryResults: SearchResult[] = []
-  const duplicatesMap = new Map<string, SearchResult[]>()
-  for (const [sku, group] of skuToGroup.entries()) {
-    primaryResults.push(group.primary)
-    if (group.duplicates.length > 0) {
-      duplicatesMap.set(sku, group.duplicates)
-    }
-  }
-
-  // Paginate primary results (one per SKU)
-  const totalPages = Math.ceil(primaryResults.length / ITEMS_PER_PAGE)
+  // Use backend-provided results directly (no client-side grouping)
+  // Backend already handles grouping via group_by parameter
+  const totalPages = Math.ceil(sortedResults.length / ITEMS_PER_PAGE)
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const paginatedResults = primaryResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  const paginatedResults = sortedResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
 
   // Notify parent about pagination changes
   useEffect(() => {
-    if (onPaginationChange && primaryResults.length > 0) {
-      onPaginationChange(currentPage, ITEMS_PER_PAGE, primaryResults.length)
+    if (onPaginationChange && sortedResults.length > 0) {
+      onPaginationChange(currentPage, ITEMS_PER_PAGE, sortedResults.length)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, primaryResults.length])
+  }, [currentPage, sortedResults.length])
 
   if (searching) {
     return (
@@ -418,59 +387,34 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
   return (
     <div className="space-y-6">
 
-      {/* Results Grid (unique SKUs) */}
+      {/* Results Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {paginatedResults.flatMap((result: SearchResult, index) => {
-          const dupes = duplicatesMap.get(result.sku_code) || []
-          const hasDupes = dupes.length > 0
-          const elements: React.ReactNode[] = []
-          elements.push(
-            <div key={`${result.sku_id}-${index}`} className="flex flex-col">
-              <ResultCard
-                result={result}
-                index={index}
-                startIndex={startIndex}
-                onImageClick={handleImageClick}
-                onFindSimilar={onFindSimilar}
-                onToggleInteraction={onToggleInteraction}
-                getInteractionForSku={getInteractionForSku}
-                isTextSearch={isTextSearch}
-                duplicatesCount={hasDupes ? dupes.length : 0}
-                duplicatesExpanded={expandedSkus.has(result.sku_code)}
-                onToggleDuplicates={() => {
-                  setExpandedSkus(prev => {
-                    const next = new Set(prev)
-                    if (next.has(result.sku_code)) next.delete(result.sku_code)
-                    else next.add(result.sku_code)
-                    return next
+        {paginatedResults.map((result: SearchResult, index) => (
+          <div key={`${result.sku_id}-${index}`} className="flex flex-col">
+            <ResultCard
+              result={result}
+              index={index}
+              startIndex={startIndex}
+              onImageClick={handleImageClick}
+              onFindSimilar={onFindSimilar}
+              onToggleInteraction={onToggleInteraction}
+              getInteractionForSku={getInteractionForSku}
+              isTextSearch={isTextSearch}
+              duplicatesCount={result.grouped_assets?.length || 0}
+              onToggleDuplicates={() => {
+                if (result.grouped_assets && result.grouped_assets.length > 0) {
+                  setSelectedGroupedResult(result)
+                  setShowGroupedModal(true)
+                  posthog.capture('view_grouped_assets_clicked', {
+                    sku_code: result.sku_code,
+                    plp_code: result.plp_code,
+                    grouped_count: result.grouped_assets?.length || 0
                   })
-                }}
-              />
-            </div>
-          )
-          if (expandedSkus.has(result.sku_code) && hasDupes) {
-            dupes.forEach((dup, idx) => {
-              elements.push(
-                <AnimatedWrapper key={`${dup.sku_id}-dup-${idx}`} delayMs={idx * 120}>
-                  <div className="flex flex-col">
-                    <ResultCard
-                      result={dup}
-                      index={index + idx + 1}
-                      startIndex={startIndex}
-                      onImageClick={handleImageClick}
-                      onFindSimilar={onFindSimilar}
-                      onToggleInteraction={onToggleInteraction}
-                      getInteractionForSku={getInteractionForSku}
-                      isTextSearch={isTextSearch}
-                      isDuplicate
-                    />
-                  </div>
-                </AnimatedWrapper>
-              )
-            })
-          }
-          return elements
-        })}
+                }
+              }}
+            />
+          </div>
+        ))}
       </div>
 
       {/* Pagination Controls */}
@@ -552,6 +496,7 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
               const thumbnailImg = clickedElement.querySelector('img')
               if (thumbnailImg && selectedResult.image_url) {
                 return (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={thumbnailImg.src}
                     alt={selectedResult.sku_code}
@@ -570,7 +515,24 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
         </div>
       )}
 
-      {/* Inline duplicates are rendered directly in the grid after their parent card */}
+      {/* Grouped Assets Modal */}
+      {showGroupedModal && selectedGroupedResult && selectedGroupedResult.grouped_assets && (
+        <GroupedAssetsModal
+          isOpen={showGroupedModal}
+          onClose={() => {
+            setShowGroupedModal(false)
+            setSelectedGroupedResult(null)
+          }}
+          mainResult={selectedGroupedResult}
+          groupedAssets={selectedGroupedResult.grouped_assets}
+          onImageClick={(result) => {
+            // Open zoom modal for clicked grouped asset
+            setSelectedResult(result)
+            setShowPopup(true)
+            setShowGroupedModal(false) // Close grouped modal
+          }}
+        />
+      )}
 
     </div>
   )
