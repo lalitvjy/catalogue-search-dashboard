@@ -46,7 +46,7 @@ export async function POST() {
     // Return the token and redirect URL
     return NextResponse.json({
       sso_token: ssoToken,
-      redirect_url: `${process.env.SPARK_STUDIO_URL || 'http://localhost:8080'}/auth/external?token=${ssoToken}`
+      redirect_url: `${process.env.SPARK_STUDIO_URL || 'http://localhost:8083'}/auth/external?token=${ssoToken}`
     })
 
   } catch (error) {

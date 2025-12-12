@@ -66,7 +66,7 @@ export async function POST(req: Request) {
     })
 
     // Get API URL from environment - use the same pattern as other endpoints
-    const baseApiUrl = process.env.API_SERVER_HOST || 'http://localhost:8080'
+    const baseApiUrl = process.env.API_SERVER_HOST || 'http://localhost:8083'
     const skuSearchUrl = `${baseApiUrl}/api/search/by-field-sql`
     
     console.log('🔍 Base API URL:', baseApiUrl)

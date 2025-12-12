@@ -36,10 +36,11 @@ interface ImageDropProps {
   diamondWtMax?: number  // Diamond weight max filter
   ctrstoneWtMin?: number  // Center stone weight min filter
   ctrstoneWtMax?: number  // Center stone weight max filter
+  category?: string  // Category filter (style_category)
   resultSize?: number  // Number of results to return
 }
 
-export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, triggerUrlSearch, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, resultSize }: ImageDropProps) {
+export default function ImageDrop({ onImageUpload, onSearchResults, onSearching, uploadedImage, triggerSearch, searchImageUrl, triggerUrlSearch, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, category, resultSize }: ImageDropProps) {
   const { data: session } = useSession()
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -75,6 +76,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       formData.append('diamond_wt_max', (diamondWtMax || '').toString())
       formData.append('ctrstone_wt_min', (ctrstoneWtMin || '').toString())
       formData.append('ctrstone_wt_max', (ctrstoneWtMax || '').toString())
+      formData.append('category', (category || '').toString())
 
       const extendedSession = session as unknown as ExtendedSession
       const brandId = extendedSession?.brandId
@@ -161,12 +163,12 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
 
   // Handle triggering search for existing uploaded image
   useEffect(() => {
-    console.log('ImageDrop useEffect triggered:', { triggerSearch, searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax })
+    console.log('ImageDrop useEffect triggered:', { triggerSearch, searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, category })
     if (triggerSearch && triggerSearch > 0 && searchImageUrl) {
-      console.log('Triggering search with params:', { imageUrl: searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax })
+      console.log('Triggering search with params:', { imageUrl: searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, category })
       searchForImageUrl(searchImageUrl)
     }
-  }, [triggerSearch, searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax])
+  }, [triggerSearch, searchImageUrl, resultSize, scoreThreshold, diamondWtMin, diamondWtMax, ctrstoneWtMin, ctrstoneWtMax, category])
 
   // Handle triggering URL search from external source (e.g., SKU search)
   useEffect(() => {
@@ -257,7 +259,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
             diamond_wt_min: diamondWtMin || '',
             diamond_wt_max: diamondWtMax || '',
             ctrstone_wt_min: ctrstoneWtMin || '',
-            ctrstone_wt_max: ctrstoneWtMax || ''
+            ctrstone_wt_max: ctrstoneWtMax || '',
+            category: category || ''
           }),
           signal: controller.signal
         })
@@ -331,6 +334,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
           formData.append('diamond_wt_max', (diamondWtMax || '').toString())
           formData.append('ctrstone_wt_min', (ctrstoneWtMin || '').toString())
           formData.append('ctrstone_wt_max', (ctrstoneWtMax || '').toString())
+          formData.append('category', (category || '').toString())
           
           // Add brand ID from session if available
           const extendedSession = session as unknown as ExtendedSession
@@ -363,7 +367,8 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
               diamond_wt_min: diamondWtMin || '',
               diamond_wt_max: diamondWtMax || '',
               ctrstone_wt_min: ctrstoneWtMin || '',
-              ctrstone_wt_max: ctrstoneWtMax || ''
+              ctrstone_wt_max: ctrstoneWtMax || '',
+              category: category || ''
             }),
             signal: controller.signal
           })
@@ -486,6 +491,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
       formData.append('diamond_wt_max', (diamondWtMax || '').toString())
       formData.append('ctrstone_wt_min', (ctrstoneWtMin || '').toString())
       formData.append('ctrstone_wt_max', (ctrstoneWtMax || '').toString())
+      formData.append('category', (category || '').toString())
       
       // Add brand ID from session if available
       const extendedSession = session as unknown as ExtendedSession

@@ -72,12 +72,23 @@ export default function SearchPage() {
   // Impression tracking for search page elements
   const logoutButtonRef = useImpressionTracking({ eventName: 'imp_logout' })
 
+  // Debug: Log when results state changes
+  useEffect(() => {
+    console.log('Results state updated, new length:', results.length)
+  }, [results])
+
   // Filter results based on current filters (memoized to prevent unnecessary re-renders)
   // Must be defined before any conditional returns to follow Rules of Hooks
   const filteredResults = useMemo(() => {
+    console.log('filteredResults memo recalculating, results.length:', results.length, 'filters:', filters)
     return results.filter(result => {
-      if (filters.category && result.attributes?.category !== filters.category) {
-        return false
+      // Check category (text match)
+      if (filters.category) {
+        const category = result.attributes?.category
+        if (typeof category !== 'string' || 
+            !category.toLowerCase().includes(filters.category.toLowerCase())) {
+          return false
+        }
       }
       if (filters.tags && result.attributes?.tags !== filters.tags) {
         return false
@@ -113,6 +124,86 @@ export default function SearchPage() {
     setItemsPerPage(perPage)
     setTotalItems(total)
   }, [])
+
+  const handleSearchResults = useCallback(async (searchResults: SearchResult[], isText: boolean = false) => {
+    console.log('handleSearchResults called with', searchResults.length, 'results')
+    setResults(searchResults)
+    setIsTextSearch(isText)
+    
+    // Track search results impression with full response data
+    if (searchResults.length > 0) {
+      posthog.capture('imp_search_results_loaded', {
+        total_results: searchResults.length,
+        results: searchResults.map((result, index) => ({
+          sku_id: result.sku_id,
+          sku_code: result.sku_code,
+          confidence: result.confidence,
+          position: index + 1,
+          file_name: result.file_name,
+          price: result.price,
+          category: result.attributes?.category
+        }))
+      })
+    }
+    
+    // Create search interaction when we have search results and an uploaded image
+    if (searchResults.length > 0 && uploadedImage) {
+      try {
+        // Ensure the input image is uploaded to R2 via our API
+        let finalImageUrl = uploadedImage
+        try {
+          if (uploadedImage.startsWith('blob:')) {
+            const response = await fetch(uploadedImage)
+            const blob = await response.blob()
+            const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
+            const formData = new FormData()
+            formData.append('file', file)
+            const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: formData })
+            if (uploadRes.ok) {
+              const data = await uploadRes.json()
+              finalImageUrl = data.url || finalImageUrl
+            }
+          } else if (/^https?:\/\//i.test(uploadedImage)) {
+            // For external URLs, fetch and reupload to R2 for persistence
+            const imageResp = await fetch(uploadedImage)
+            if (imageResp.ok) {
+              const blob = await imageResp.blob()
+              const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
+              const formData = new FormData()
+              formData.append('file', file)
+              const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: formData })
+              if (uploadRes.ok) {
+                const data = await uploadRes.json()
+                finalImageUrl = data.url || finalImageUrl
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to upload input image to R2:', e)
+        }
+
+        await createSearchInteraction({
+          inputImageUrl: finalImageUrl,
+          searchParams: {
+            scoreThreshold: filters.confidence_min || 0.1,
+            diamondWtMin: filters.diamond_wt_min,
+            diamondWtMax: filters.diamond_wt_max,
+            ctrstoneWtMin: filters.ctrstone_wt_min,
+            ctrstoneWtMax: filters.ctrstone_wt_max,
+            resultSize
+          },
+          totalResults: searchResults.length
+        })
+        console.log("Creating search interactions!!!!!!------->");
+      } catch (error) {
+        console.error('Failed to create search interaction:', error)
+        // Don't show error to user for this background operation
+      }
+    }
+    
+    // Scroll to top when new results are loaded
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [uploadedImage, filters.confidence_min, filters.diamond_wt_min, filters.diamond_wt_max, filters.ctrstone_wt_min, filters.ctrstone_wt_max, resultSize, createSearchInteraction])
 
   const performSkuSearch = useCallback(async (skuValue: string, confidenceOverride?: number) => {
     try {
@@ -365,85 +456,6 @@ export default function SearchPage() {
     }
   }
 
-  const handleSearchResults = async (searchResults: SearchResult[], isText: boolean = false) => {
-    setResults(searchResults)
-    setIsTextSearch(isText)
-    
-    // Track search results impression with full response data
-    if (searchResults.length > 0) {
-      posthog.capture('imp_search_results_loaded', {
-        total_results: searchResults.length,
-        results: searchResults.map((result, index) => ({
-          sku_id: result.sku_id,
-          sku_code: result.sku_code,
-          confidence: result.confidence,
-          position: index + 1,
-          file_name: result.file_name,
-          price: result.price,
-          category: result.attributes?.category
-        }))
-      })
-    }
-    
-    // Create search interaction when we have search results and an uploaded image
-    if (searchResults.length > 0 && uploadedImage) {
-      try {
-        // Ensure the input image is uploaded to R2 via our API
-        let finalImageUrl = uploadedImage
-        try {
-          if (uploadedImage.startsWith('blob:')) {
-            const response = await fetch(uploadedImage)
-            const blob = await response.blob()
-            const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
-            const formData = new FormData()
-            formData.append('file', file)
-            const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: formData })
-            if (uploadRes.ok) {
-              const data = await uploadRes.json()
-              finalImageUrl = data.url || finalImageUrl
-            }
-          } else if (/^https?:\/\//i.test(uploadedImage)) {
-            // For external URLs, fetch and reupload to R2 for persistence
-            const imageResp = await fetch(uploadedImage)
-            if (imageResp.ok) {
-              const blob = await imageResp.blob()
-              const file = new File([blob], 'search-image.jpg', { type: blob.type || 'image/jpeg' })
-              const formData = new FormData()
-              formData.append('file', file)
-              const uploadRes = await fetch('/api/upload/image', { method: 'POST', body: formData })
-              if (uploadRes.ok) {
-                const data = await uploadRes.json()
-                finalImageUrl = data.url || finalImageUrl
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to upload input image to R2:', e)
-        }
-
-        await createSearchInteraction({
-          inputImageUrl: finalImageUrl,
-          searchParams: {
-            scoreThreshold: filters.confidence_min || 0.1,
-            diamondWtMin: filters.diamond_wt_min,
-            diamondWtMax: filters.diamond_wt_max,
-            ctrstoneWtMin: filters.ctrstone_wt_min,
-            ctrstoneWtMax: filters.ctrstone_wt_max,
-            resultSize
-          },
-          totalResults: searchResults.length
-        })
-        console.log("Creating search interactions!!!!!!------->");
-      } catch (error) {
-        console.error('Failed to create search interaction:', error)
-        // Don't show error to user for this background operation
-      }
-    }
-    
-    // Scroll to top when new results are loaded
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
   const handleFindSimilar = (imageUrl: string) => {
     setError(null)
     
@@ -606,6 +618,7 @@ export default function SearchPage() {
               diamondWtMax={filters.diamond_wt_max}
               ctrstoneWtMin={filters.ctrstone_wt_min}
               ctrstoneWtMax={filters.ctrstone_wt_max}
+              category={filters.category}
               resultSize={resultSize}
             />
           </div>
@@ -734,6 +747,7 @@ export default function SearchPage() {
                 diamondWtMax={filters.diamond_wt_max}
                 ctrstoneWtMin={filters.ctrstone_wt_min}
                 ctrstoneWtMax={filters.ctrstone_wt_max}
+                category={filters.category}
                 resultSize={resultSize}
               />
             </div>

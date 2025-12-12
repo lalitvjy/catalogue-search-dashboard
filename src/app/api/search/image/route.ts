@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     const diamondWtMax = formData.get('diamond_wt_max') as string
     const ctrstoneWtMin = formData.get('ctrstone_wt_min') as string
     const ctrstoneWtMax = formData.get('ctrstone_wt_max') as string
+    const category = formData.get('category') as string
     
     // Log what brand IDs we're working with
     console.log('🔍 BRAND ID ANALYSIS:')
@@ -93,7 +94,7 @@ export async function POST(req: Request) {
     externalFormData.append('brand_id', brand.id)
     externalFormData.append('limit', limit)
     externalFormData.append('score_threshold', scoreThreshold)
-    externalFormData.append('category', '') // Add empty category parameter
+    externalFormData.append('category', category || '') // Use category parameter from request
     externalFormData.append('tags', '')     // Add empty tags parameter
     externalFormData.append('diamond_wt_min', diamondWtMin || '') // Add diamond weight min parameter
     externalFormData.append('diamond_wt_max', diamondWtMax || '') // Add diamond weight max parameter

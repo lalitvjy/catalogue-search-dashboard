@@ -190,7 +190,7 @@ export default function SkuTextSearch({
       formData.append('limit', (resultSize || 100).toString())
       formData.append('score_threshold', (scoreThreshold || 0.1).toString())
 
-      const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'http://localhost:8080'
+      const baseApiUrl = process.env.NEXT_PUBLIC_API_SERVER_HOST || 'http://localhost:8083'
       const response = await fetch(`${baseApiUrl}/api/search/text`, {
         method: 'POST',
         body: formData,

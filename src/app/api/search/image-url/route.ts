@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   try {
     // Parse JSON body from the request
     const body = await req.json()
-    const { image_url, diamond_wt_min, diamond_wt_max, ctrstone_wt_min, ctrstone_wt_max } = body
+    const { image_url, diamond_wt_min, diamond_wt_max, ctrstone_wt_min, ctrstone_wt_max, category } = body
     const limit = body?.limit ?? 100
     const score_threshold = body?.score_threshold ?? 0.1
     
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
     formData.append('brand_id', brand.id)
     formData.append('limit', limit.toString())
     formData.append('score_threshold', score_threshold.toString())
-    formData.append('category', '')
+    formData.append('category', category || '')
     formData.append('tags', '')
     formData.append('diamond_wt_min', diamond_wt_min || '')
     formData.append('diamond_wt_max', diamond_wt_max || '')
