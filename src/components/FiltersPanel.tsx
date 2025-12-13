@@ -32,10 +32,11 @@ interface FiltersPanelProps {
   resultSize?: number
   onResultSizeChange?: (size: number) => void
   onApplyAllFilters?: (updatedFilters?: Filters) => void
+  enabledFilters?: string[]
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters }: FiltersPanelProps) {
+export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters, enabledFilters = [] }: FiltersPanelProps) {
   const [tempConfidence, setTempConfidence] = useState<number>(filters.confidence_min || 0)
   const [hasConfidenceChanged, setHasConfidenceChanged] = useState(false)
   const [hasAnyFilterChanged, setHasAnyFilterChanged] = useState(false)
@@ -305,10 +306,10 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
         </div>
       )}
 
-      {/* Dynamic Filters - Show only when data is available after first search */}
+      {/* Dynamic Filters - Show based on enabledFilters configuration */}
       
       {/* Category Filter (category as text input) */}
-      {facets.hasCategory && results.length > 0 && (
+      {enabledFilters.includes('category') && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
           <input
@@ -327,7 +328,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
       )}
 
       {/* Diamond CT (diamond_wt) */}
-      {facets.hasDiamondWt && results.length > 0 && (
+      {enabledFilters.includes('diamond_wt') && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Diamond CT: {
@@ -350,7 +351,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
                   setTempDiamondWtMin(val)
                   setHasAnyFilterChanged(true)
                 }}
-                placeholder={facets.diamondWtMin.toFixed(2)}
+                placeholder={facets.hasDiamondWt ? facets.diamondWtMin.toFixed(2) : '0.00'}
                 className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -365,7 +366,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
                   setTempDiamondWtMax(val)
                   setHasAnyFilterChanged(true)
                 }}
-                placeholder={facets.diamondWtMax.toFixed(2)}
+                placeholder={facets.hasDiamondWt ? facets.diamondWtMax.toFixed(2) : '10.00'}
                 className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -374,7 +375,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
       )}
 
       {/* Center Stone WT (ctrstone_wt) */}
-      {facets.hasCtrstoneWt && results.length > 0 && (
+      {enabledFilters.includes('ctrstone_wt') && (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Center Stone WT: {
@@ -397,7 +398,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
                   setTempCtrstoneWtMin(val)
                   setHasAnyFilterChanged(true)
                 }}
-                placeholder={facets.ctrstoneWtMin.toFixed(2)}
+                placeholder={facets.hasCtrstoneWt ? facets.ctrstoneWtMin.toFixed(2) : '0.00'}
                 className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -412,7 +413,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
                   setTempCtrstoneWtMax(val)
                   setHasAnyFilterChanged(true)
                 }}
-                placeholder={facets.ctrstoneWtMax.toFixed(2)}
+                placeholder={facets.hasCtrstoneWt ? facets.ctrstoneWtMax.toFixed(2) : '10.00'}
                 className="w-full border border-gray-300 rounded-md px-2 py-1 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>

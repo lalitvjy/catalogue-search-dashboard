@@ -69,6 +69,13 @@ export default function SearchPage() {
     }
     return []
   })
+  const [enabledFilters, setEnabledFilters] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const cached = localStorage.getItem('enabledFilters')
+      return cached !== null ? JSON.parse(cached) : []
+    }
+    return []
+  })
   const { currentSearchInteraction, createSearchInteraction, toggleInteraction, getInteraction } = useSearchInteractions()
   
   // Impression tracking for search page elements
@@ -299,6 +306,7 @@ export default function SearchPage() {
         if (!resp.ok) throw new Error('Failed to load component visibility')
         const data = await resp.json()
         const showVal = (data && (data.show ?? data?.data?.show)) as unknown
+        const enabledFiltersVal = (data && (data.enabled_filters ?? data?.data?.enabled_filters)) as unknown
         
         // Parse the show array to extract 'sku' and 'text' values
         let tabs: string[] = []
@@ -306,8 +314,14 @@ export default function SearchPage() {
           tabs = showVal.filter((item: unknown) => item === 'sku' || item === 'text')
         }
         
+        // Parse the enabled_filters array
+        let filters: string[] = []
+        if (Array.isArray(enabledFiltersVal)) {
+          filters = enabledFiltersVal.filter((item: unknown) => typeof item === 'string') as string[]
+        }
+        
         if (!isCancelled) {
-          // Get the current localStorage value
+          // Get the current localStorage value for tabs
           const cachedValue = localStorage.getItem('allowedTabs')
           const cachedTabs = cachedValue !== null ? JSON.parse(cachedValue) : []
           
@@ -320,6 +334,20 @@ export default function SearchPage() {
           } else {
             console.log('[component/show] value unchanged:', tabs)
           }
+          
+          // Get the current localStorage value for enabled filters
+          const cachedFiltersValue = localStorage.getItem('enabledFilters')
+          const cachedFilters = cachedFiltersValue !== null ? JSON.parse(cachedFiltersValue) : []
+          
+          // Update state and localStorage if the value has changed
+          const hasFiltersChanged = JSON.stringify(cachedFilters) !== JSON.stringify(filters)
+          if (cachedFiltersValue === null || hasFiltersChanged) {
+            console.log('[component/show] updating enabledFilters from', cachedFilters, 'to', filters)
+            localStorage.setItem('enabledFilters', JSON.stringify(filters))
+            setEnabledFilters(filters)
+          } else {
+            console.log('[component/show] enabledFilters unchanged:', filters)
+          }
         }
         const tEnd = performance.now()
         console.log('[component/show] total useEffect time', Math.round(tEnd - t0), 'ms')
@@ -328,6 +356,8 @@ export default function SearchPage() {
           const fallbackValue: string[] = []
           localStorage.setItem('allowedTabs', JSON.stringify(fallbackValue))
           setAllowedTabs(fallbackValue)
+          localStorage.setItem('enabledFilters', JSON.stringify(fallbackValue))
+          setEnabledFilters(fallbackValue)
         }
       }
     })()
@@ -683,6 +713,7 @@ export default function SearchPage() {
                 resultSize={resultSize}
                 onResultSizeChange={handleResultSizeChange}
                 onApplyAllFilters={handleApplyAllFilters}
+                enabledFilters={enabledFilters}
               />
             </div>
           </div>
@@ -781,6 +812,7 @@ export default function SearchPage() {
                 resultSize={resultSize}
                 onResultSizeChange={handleResultSizeChange}
                 onApplyAllFilters={handleApplyAllFilters}
+                enabledFilters={enabledFilters}
               />
             </div>
           </div>
