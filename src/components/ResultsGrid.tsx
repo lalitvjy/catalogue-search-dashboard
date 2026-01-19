@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
 import GroupedAssetsModal from './GroupedAssetsModal'
@@ -34,8 +34,6 @@ interface ResultsGridProps {
   ) => Promise<void> | void
   getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
 }
-
-const ITEMS_PER_PAGE = 20
 
 // Helper function to parse price string like "25,232.44 INR" and return formatted price with rupee symbol
 const formatPrice = (priceStr: string | null | undefined): string | null => {
@@ -72,6 +70,36 @@ interface ResultCardProps {
 }
 
 function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, onToggleInteraction, getInteractionForSku, isTextSearch, duplicatesCount = 0, onToggleDuplicates }: ResultCardProps) {
+  const [isImageLoaded, setIsImageLoaded] = useState(false)
+  const [shouldLoadImage, setShouldLoadImage] = useState(false)
+  const imageContainerRef = useRef<HTMLDivElement>(null)
+
+  // Intersection Observer for lazy loading images
+  useEffect(() => {
+    if (!imageContainerRef.current) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setShouldLoadImage(true)
+            observer.disconnect() // Stop observing once we've started loading
+          }
+        })
+      },
+      {
+        rootMargin: '50px', // Start loading 50px before the image enters viewport
+        threshold: 0.01
+      }
+    )
+
+    observer.observe(imageContainerRef.current)
+
+    return () => {
+      observer.disconnect()
+    }
+  }, [])
+
   const performToggle = async (
     result: SearchResult,
     interactionType: 'LIKE' | 'DISLIKE',
@@ -104,7 +132,8 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
     >
       {/* Image Container with Confidence Indicator */}
       <div 
-        className="relative aspect-[4/3] bg-white p-2 cursor-zoom-in hover:bg-gray-50 transition-colors"
+        ref={imageContainerRef}
+        className="relative aspect-[4/3] bg-gray-100 p-2 cursor-zoom-in hover:bg-gray-50 transition-colors overflow-hidden"
         onClick={(e) => {
           posthog.capture('zoomed_in', { 
             sku_id: result.sku_id,
@@ -115,32 +144,44 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
           onImageClick(result, e)
         }}
       >
-        {result.image_url ? (
+        {/* Loading skeleton - absolute positioned to not affect layout */}
+        {!isImageLoaded && (
+          <div 
+            className="absolute inset-0 m-2 flex items-center justify-center bg-gray-100 rounded-lg animate-pulse"
+          >
+            {!shouldLoadImage && (
+              <svg className="w-8 h-8 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+              </svg>
+            )}
+          </div>
+        )}
+
+        {/* Actual image - absolute positioned to not affect layout */}
+        {shouldLoadImage && result.image_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={result.image_url}
             alt={result.sku_code}
-            className="w-full h-full object-contain rounded-lg"
-            style={{ aspectRatio: '4 / 3' }}
+            className="absolute inset-0 m-2 w-[calc(100%-1rem)] h-[calc(100%-1rem)] object-contain rounded-lg"
+            style={{ 
+              opacity: isImageLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease-in-out'
+            }}
+            onLoad={() => setIsImageLoaded(true)}
             onError={(e) => {
               const target = e.currentTarget
               target.style.display = 'none'
-              const errorDiv = target.nextElementSibling as HTMLElement
-              if (errorDiv) {
-                errorDiv.style.display = 'flex'
+              const parent = target.parentElement
+              if (parent) {
+                const errorDiv = document.createElement('div')
+                errorDiv.className = 'absolute inset-0 m-2 flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-sm'
+                errorDiv.textContent = 'Error loading image'
+                parent.appendChild(errorDiv)
               }
             }}
           />
         ) : null}
-        <div 
-          className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-sm"
-          style={{ 
-            aspectRatio: '4 / 3',
-            display: result.image_url ? 'none' : 'flex'
-          }}
-        >
-          Error Image loading
-        </div>
         
         {/* Confidence Badge - Hide for text search */}
         {!isTextSearch && (
@@ -246,61 +287,15 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
 }
 
 export default function ResultsGrid({ results, searching, isTextSearch, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
-  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
   const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
   const [popupTranslate, setPopupTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [showGroupedModal, setShowGroupedModal] = useState(false)
   const [selectedGroupedResult, setSelectedGroupedResult] = useState<SearchResult | null>(null)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const observerTarget = useRef<HTMLDivElement>(null)
-
-  // Reset visible count when results change
-  useEffect(() => {
-    setVisibleCount(ITEMS_PER_PAGE)
-  }, [results])
 
   // Sort results by confidence (high to low)
   const sortedResults = [...results].sort((a, b) => b.confidence - a.confidence)
-
-  // Load more items when scrolling to bottom
-  const loadMore = useCallback(() => {
-    if (visibleCount >= sortedResults.length) return
-    
-    setIsLoadingMore(true)
-    // Simulate a small delay for smooth loading
-    setTimeout(() => {
-      setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, sortedResults.length))
-      setIsLoadingMore(false)
-    }, 300)
-  }, [visibleCount, sortedResults.length])
-
-  // Intersection Observer for infinite scroll
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && !isLoadingMore && visibleCount < sortedResults.length) {
-          loadMore()
-        }
-      },
-      { 
-        threshold: 0,
-        rootMargin: '200px' // Trigger 200px before the element comes into view
-      }
-    )
-
-    const currentTarget = observerTarget.current
-    if (currentTarget) {
-      observer.observe(currentTarget)
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget)
-      }
-    }
-  }, [loadMore, isLoadingMore, visibleCount, sortedResults.length])
 
   // Prevent body scrolling when modal is open
   useEffect(() => {
@@ -382,10 +377,6 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
     }
   }, [showPopup, clickedElement])
 
-  // Show items up to visibleCount for infinite scroll
-  const displayedResults = sortedResults.slice(0, visibleCount)
-  const hasMore = visibleCount < sortedResults.length
-
   if (searching) {
     return (
       <div className="text-center py-12">
@@ -416,9 +407,9 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
   return (
     <div className="space-y-6">
 
-      {/* Results Grid */}
+      {/* Results Grid - Display all results at once with lazy loaded images */}
       <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3 md:gap-4">
-        {displayedResults.map((result: SearchResult, index: number) => (
+        {sortedResults.map((result: SearchResult, index: number) => (
           <div key={`${result.sku_id}-${index}`} className="flex flex-col">
             <ResultCard
               result={result}
@@ -446,24 +437,9 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
         ))}
       </div>
 
-      {/* Loading More Indicator */}
-      {isLoadingMore && (
-        <div className="text-center py-6">
-          <div className="inline-flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-            <p className="text-sm text-gray-600">Loading more results...</p>
-          </div>
-        </div>
-      )}
-
-      {/* Intersection Observer Target - increased height and padding for better detection */}
-      {hasMore && !isLoadingMore && (
-        <div ref={observerTarget} className="h-20 py-8" />
-      )}
-
-      {/* End of Results Message */}
-      {!hasMore && sortedResults.length > ITEMS_PER_PAGE && (
-        <div className="text-center py-6 border-t border-gray-200">
+      {/* Results Count */}
+      {sortedResults.length > 0 && (
+        <div className="text-center py-4 border-t border-gray-200">
           <p className="text-sm text-gray-600">
             Showing all {sortedResults.length} results
           </p>
