@@ -20,9 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} flex flex-col min-h-screen`}>
+      <body className={`${inter.className} flex flex-col h-screen overflow-hidden`}>
         <Providers>
-          <div className="flex-1">
+          <div className="flex-1 overflow-hidden">
             {children}
           </div>
           <Footer />

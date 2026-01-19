@@ -57,10 +57,6 @@ export default function SearchPage() {
   const [triggerUrlSearch, setTriggerUrlSearch] = useState<string | null>(null)
   const [lastSkuSearch, setLastSkuSearch] = useState<string | null>(null)
   const [triggerSkuSearch, setTriggerSkuSearch] = useState<string | null>(null)
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1)
-  const [itemsPerPage, setItemsPerPage] = useState(20)
-  const [totalItems, setTotalItems] = useState(0)
   // Initialize from localStorage if available, otherwise default to empty array
   const [allowedTabs, setAllowedTabs] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
@@ -127,12 +123,6 @@ export default function SearchPage() {
       return true
     })
   }, [results, filters])
-
-  const handlePaginationChange = useCallback((page: number, perPage: number, total: number) => {
-    setCurrentPage(page)
-    setItemsPerPage(perPage)
-    setTotalItems(total)
-  }, [])
 
   const handleSearchResults = useCallback(async (searchResults: SearchResult[], isText: boolean = false) => {
     console.log('handleSearchResults called with', searchResults.length, 'results')
@@ -587,13 +577,13 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      <div className="max-w-[1920px] mx-auto w-full flex flex-col h-full">
         {/* Header - More compact on mobile */}
-        <div className="mb-4 sm:mb-8">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex-shrink-0 px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
+          <div className="flex items-center justify-between mb-2">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">mirrAR Catalogue Search</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">mirrAR Catalogue Search</h1>
               <p className="text-sm sm:text-base text-gray-600">Upload an image to find similar products</p>
             </div>
             <div className="flex items-center space-x-4">
@@ -617,7 +607,7 @@ export default function SearchPage() {
 
         {/* Error Display */}
         {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
+          <div className="flex-shrink-0 mx-4 sm:mx-6 mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
             <div className="flex items-center justify-between">
               <span>{error}</span>
               <button
@@ -632,8 +622,10 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Mobile-first layout */}
-        <div className="space-y-4 sm:space-y-6 lg:hidden">
+        {/* Main Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-6 lg:pb-0 pb-4">
+          {/* Mobile-first layout */}
+          <div className="space-y-4 sm:space-y-6 lg:hidden">
           {/* Image Input - Full width on mobile/tablet */}
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
             <h2 className="text-lg font-semibold mb-4 text-gray-800">Image Input</h2>
@@ -696,13 +688,6 @@ export default function SearchPage() {
             <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
               <div className="sm:hidden mb-4">
                 <h3 className="font-medium text-gray-900 mb-2">Filters</h3>
-                <div className="text-sm text-gray-700 font-medium mb-4">
-                  {filteredResults.length > 0 ? (
-                    <>Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}</>
-                  ) : (
-                    <>No results</>
-                  )}
-                </div>
               </div>
               <FiltersPanel 
                 filters={filters}
@@ -722,29 +707,18 @@ export default function SearchPage() {
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
             <div className="flex items-center justify-between mb-4 sm:mb-6">
               <h2 className="text-lg font-semibold text-gray-800">Search Results</h2>
-              <div className="flex items-center space-x-4">
-                {results.length > 0 && (
-                  <span className="text-sm text-gray-700 font-medium">
-                    {filteredResults.length > 0 ? (
-                      <>Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}</>
-                    ) : (
-                      <>No results</>
-                    )}
-                  </span>
-                )}
-                <div className="flex items-center space-x-2">
-                  <label htmlFor="result-size" className="text-sm text-gray-600">Results:</label>
-                  <select
-                    id="result-size"
-                    value={resultSize}
-                    onChange={(e) => handleResultSizeChangeImmediate(Number(e.target.value))}
-                    className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value={20}>20</option>
-                    <option value={40}>40</option>
-                    <option value={100}>100</option>
-                  </select>
-                </div>
+              <div className="flex items-center space-x-2">
+                <label htmlFor="result-size" className="text-sm text-gray-600">Results:</label>
+                <select
+                  id="result-size"
+                  value={resultSize}
+                  onChange={(e) => handleResultSizeChangeImmediate(Number(e.target.value))}
+                  className="text-sm border border-gray-300 rounded-md px-2 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={20}>20</option>
+                  <option value={40}>40</option>
+                  <option value={100}>100</option>
+                </select>
               </div>
             </div>
             
@@ -755,16 +729,15 @@ export default function SearchPage() {
               onFindSimilar={handleFindSimilar}
               onToggleInteraction={handleToggleInteraction}
               getInteractionForSku={getInteraction}
-              onPaginationChange={handlePaginationChange}
             />
           </div>
         </div>
 
         {/* Desktop Layout - 2-column layout (lg and above) */}
-        <div className="hidden lg:grid lg:grid-cols-10 lg:gap-8">
-          {/* Left Column - Image Input and Filters (30% width) */}
-          <div className="lg:col-span-3">
-            <div className="sticky top-4 h-[calc(100vh-8rem)] overflow-y-auto space-y-6 pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div className="hidden lg:grid lg:grid-cols-12 lg:gap-8 lg:h-auto">
+          {/* Left Column - Image Input and Filters (fixed width) */}
+          <div className="lg:col-span-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+            <div className="space-y-6">
               {/* Image Input */}
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <h2 className="text-lg font-semibold mb-4 text-gray-800">Image Input</h2>
@@ -803,7 +776,7 @@ export default function SearchPage() {
               )}
 
               {/* Filters */}
-              <div className="bg-white p-6 rounded-lg shadow-sm">
+              <div className="bg-white p-6 rounded-lg shadow-sm mb-4">
                 <FiltersPanel 
                   filters={filters}
                   onFiltersChange={setFilters}
@@ -819,35 +792,26 @@ export default function SearchPage() {
             </div>
           </div>
 
-          {/* Right Column - Search Results (70% width) */}
-          <div className="lg:col-span-7">
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-              <div className="flex items-center justify-between mb-6">
+          {/* Right Column - Search Results (expanded width) */}
+          <div className="lg:col-span-9 flex flex-col" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+            <div className="bg-white rounded-lg shadow-sm flex flex-col overflow-hidden h-full">
+              <div className="flex items-center justify-between p-6 pb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold text-gray-800">Search Results</h2>
-                <div className="flex items-center space-x-4">
-                  {results.length > 0 && (
-                    <span className="text-sm text-gray-700 font-medium">
-                      {filteredResults.length > 0 ? (
-                        <>Showing {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems}</>
-                      ) : (
-                        <>No results</>
-                      )}
-                    </span>
-                  )}
-                </div>
               </div>
               
-              <ResultsGrid 
-                results={filteredResults} 
-                searching={searching} 
-                isTextSearch={isTextSearch}
-                onFindSimilar={handleFindSimilar}
-                onToggleInteraction={handleToggleInteraction}
-                getInteractionForSku={getInteraction}
-                onPaginationChange={handlePaginationChange}
-              />
+              <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+                <ResultsGrid 
+                  results={filteredResults} 
+                  searching={searching} 
+                  isTextSearch={isTextSearch}
+                  onFindSimilar={handleFindSimilar}
+                  onToggleInteraction={handleToggleInteraction}
+                  getInteractionForSku={getInteraction}
+                />
+              </div>
             </div>
           </div>
+        </div>
         </div>
       </div>
 

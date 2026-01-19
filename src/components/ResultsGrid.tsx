@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import ActionButtons from './ActionButtons'
 import CopySku from './CopySku'
 import GroupedAssetsModal from './GroupedAssetsModal'
@@ -33,7 +33,6 @@ interface ResultsGridProps {
     resultPosition: number
   ) => Promise<void> | void
   getInteractionForSku?: (skuId: string) => 'LIKE' | 'DISLIKE' | undefined
-  onPaginationChange?: (currentPage: number, itemsPerPage: number, totalItems: number) => void
 }
 
 const ITEMS_PER_PAGE = 20
@@ -105,7 +104,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
     >
       {/* Image Container with Confidence Indicator */}
       <div 
-        className="relative aspect-square bg-white p-3 cursor-zoom-in hover:bg-gray-50 transition-colors"
+        className="relative aspect-[4/3] bg-white p-2 cursor-zoom-in hover:bg-gray-50 transition-colors"
         onClick={(e) => {
           posthog.capture('zoomed_in', { 
             sku_id: result.sku_id,
@@ -122,7 +121,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
             src={result.image_url}
             alt={result.sku_code}
             className="w-full h-full object-contain rounded-lg"
-            style={{ aspectRatio: '1 / 1' }}
+            style={{ aspectRatio: '4 / 3' }}
             onError={(e) => {
               const target = e.currentTarget
               target.style.display = 'none'
@@ -136,7 +135,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
         <div 
           className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-sm"
           style={{ 
-            aspectRatio: '1 / 1',
+            aspectRatio: '4 / 3',
             display: result.image_url ? 'none' : 'flex'
           }}
         >
@@ -181,7 +180,7 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
       </div>
       
       {/* Content Section */}
-      <div className="px-3 pb-3 flex flex-col flex-1">
+      <div className="px-2 pb-2 flex flex-col flex-1">
         <div className="flex items-start gap-2 flex-1">
           <div className="flex-1 min-w-0">
             <div className="flex items-start gap-2 mb-1">
@@ -246,19 +245,59 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
   )
 }
 
-export default function ResultsGrid({ results, searching, isTextSearch, onFindSimilar, onToggleInteraction, getInteractionForSku, onPaginationChange }: ResultsGridProps) {
-  const [currentPage, setCurrentPage] = useState(1)
+export default function ResultsGrid({ results, searching, isTextSearch, onFindSimilar, onToggleInteraction, getInteractionForSku }: ResultsGridProps) {
+  const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE)
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null)
   const [showPopup, setShowPopup] = useState(false)
   const [clickedElement, setClickedElement] = useState<HTMLElement | null>(null)
   const [popupTranslate, setPopupTranslate] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [showGroupedModal, setShowGroupedModal] = useState(false)
   const [selectedGroupedResult, setSelectedGroupedResult] = useState<SearchResult | null>(null)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const observerTarget = useRef<HTMLDivElement>(null)
 
-  // Reset to first page when results change
+  // Reset visible count when results change
   useEffect(() => {
-    setCurrentPage(1)
+    setVisibleCount(ITEMS_PER_PAGE)
   }, [results])
+
+  // Sort results by confidence (high to low)
+  const sortedResults = [...results].sort((a, b) => b.confidence - a.confidence)
+
+  // Load more items when scrolling to bottom
+  const loadMore = useCallback(() => {
+    if (visibleCount >= sortedResults.length) return
+    
+    setIsLoadingMore(true)
+    // Simulate a small delay for smooth loading
+    setTimeout(() => {
+      setVisibleCount(prev => Math.min(prev + ITEMS_PER_PAGE, sortedResults.length))
+      setIsLoadingMore(false)
+    }, 300)
+  }, [visibleCount, sortedResults.length])
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !isLoadingMore && visibleCount < sortedResults.length) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    const currentTarget = observerTarget.current
+    if (currentTarget) {
+      observer.observe(currentTarget)
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget)
+      }
+    }
+  }, [loadMore, isLoadingMore, visibleCount, sortedResults.length])
 
   // Prevent body scrolling when modal is open
   useEffect(() => {
@@ -340,22 +379,9 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
     }
   }, [showPopup, clickedElement])
 
-  // Sort results by confidence (high to low)
-  const sortedResults = [...results].sort((a, b) => b.confidence - a.confidence)
-
-  // Use backend-provided results directly (no client-side grouping)
-  // Backend already handles grouping via group_by parameter
-  const totalPages = Math.ceil(sortedResults.length / ITEMS_PER_PAGE)
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-  const paginatedResults = sortedResults.slice(startIndex, startIndex + ITEMS_PER_PAGE)
-
-  // Notify parent about pagination changes
-  useEffect(() => {
-    if (onPaginationChange && sortedResults.length > 0) {
-      onPaginationChange(currentPage, ITEMS_PER_PAGE, sortedResults.length)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, sortedResults.length])
+  // Show items up to visibleCount for infinite scroll
+  const displayedResults = sortedResults.slice(0, visibleCount)
+  const hasMore = visibleCount < sortedResults.length
 
   if (searching) {
     return (
@@ -388,13 +414,13 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
     <div className="space-y-6">
 
       {/* Results Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
-        {paginatedResults.map((result: SearchResult, index) => (
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-3 md:gap-4">
+        {displayedResults.map((result: SearchResult, index: number) => (
           <div key={`${result.sku_id}-${index}`} className="flex flex-col">
             <ResultCard
               result={result}
               index={index}
-              startIndex={startIndex}
+              startIndex={0}
               onImageClick={handleImageClick}
               onFindSimilar={onFindSimilar}
               onToggleInteraction={onToggleInteraction}
@@ -417,58 +443,27 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
         ))}
       </div>
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row gap-3 justify-between items-center pt-4 border-t border-gray-200">
-          <div className="text-sm text-gray-700 font-medium">
-            Page {currentPage} of {totalPages}
+      {/* Loading More Indicator */}
+      {isLoadingMore && (
+        <div className="text-center py-6">
+          <div className="inline-flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <p className="text-sm text-gray-600">Loading more results...</p>
           </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-gray-400"
-            >
-              Previous
-            </button>
-            
-            {/* Page numbers */}
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum = i + 1
-                if (totalPages > 5) {
-                  if (currentPage > 3) {
-                    pageNum = currentPage - 2 + i
-                  }
-                  if (currentPage > totalPages - 2) {
-                    pageNum = totalPages - 4 + i
-                  }
-                }
-                
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-2 text-sm rounded-md font-medium ${
-                      currentPage === pageNum
-                        ? 'bg-blue-600 text-white'
-                        : 'text-gray-700 border border-gray-300 hover:bg-gray-50 hover:text-gray-900'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                )
-              })}
-            </div>
-            
-            <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 hover:text-gray-900 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-gray-400"
-            >
-              Next
-            </button>
-          </div>
+        </div>
+      )}
+
+      {/* Intersection Observer Target */}
+      {hasMore && !isLoadingMore && (
+        <div ref={observerTarget} className="h-4" />
+      )}
+
+      {/* End of Results Message */}
+      {!hasMore && sortedResults.length > ITEMS_PER_PAGE && (
+        <div className="text-center py-6 border-t border-gray-200">
+          <p className="text-sm text-gray-600">
+            Showing all {sortedResults.length} results
+          </p>
         </div>
       )}
 

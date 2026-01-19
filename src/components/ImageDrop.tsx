@@ -766,7 +766,7 @@ export default function ImageDrop({ onImageUpload, onSearchResults, onSearching,
   if (uploadedImage) {
     return (
       <div className="space-y-4">
-        <div className="relative aspect-square bg-gray-100 rounded-lg border-2 border-gray-200 shadow-sm overflow-hidden">
+        <div className="relative aspect-[4/3] bg-gray-100 rounded-lg border-2 border-gray-200 shadow-sm overflow-hidden">
           <CropOverlay imageUrl={uploadedImage} onCropEnd={handleCropComplete} />
           <button
             onClick={removeImage}
