@@ -243,11 +243,8 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
                 {formatPrice(result.price)}
               </div>
             )}
-            <div className="text-[11px] text-gray-500 mb-2 truncate" title={result.file_name}>
-              {result.file_name}
-            </div>
             {descText.trim() !== '' ? (
-              <div className="text-xs text-gray-700 mb-2 truncate">
+              <div className="text-xs text-gray-700 mb-2 line-clamp-2">
                 {descText}
               </div>
             ) : null}
