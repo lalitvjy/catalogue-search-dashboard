@@ -577,7 +577,7 @@ export default function SearchPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-full flex flex-col bg-gray-50">
       <div className="max-w-[1920px] mx-auto w-full flex flex-col h-full">
         {/* Header - More compact on mobile */}
         <div className="flex-shrink-0 px-4 sm:px-6 pt-4 sm:pt-6 pb-2">
@@ -622,10 +622,10 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Main Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-6 lg:pb-0 pb-4">
+        {/* Main Content - Scrollable on mobile/tablet, fixed layout on desktop */}
+        <div className="flex-1 overflow-y-auto lg:overflow-hidden px-4 sm:px-6 lg:px-6 pb-4 lg:pb-0">
           {/* Mobile-first layout */}
-          <div className="space-y-4 sm:space-y-6 lg:hidden">
+          <div className="space-y-4 sm:space-y-6 lg:hidden pb-4">
           {/* Image Input - Full width on mobile/tablet */}
           <div className="bg-white p-4 sm:p-6 rounded-lg shadow-sm">
             <h2 className="text-lg font-semibold mb-4 text-gray-800">Image Input</h2>
@@ -734,10 +734,10 @@ export default function SearchPage() {
         </div>
 
         {/* Desktop Layout - 2-column layout (lg and above) */}
-        <div className="hidden lg:grid lg:grid-cols-12 lg:gap-8 lg:h-auto">
+        <div className="hidden lg:grid lg:grid-cols-12 lg:gap-8 h-full">
           {/* Left Column - Image Input and Filters (fixed width) */}
-          <div className="lg:col-span-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100" style={{ maxHeight: 'calc(100vh - 160px)' }}>
-            <div className="space-y-6">
+          <div className="lg:col-span-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <div className="space-y-6 pb-6">
               {/* Image Input */}
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <h2 className="text-lg font-semibold mb-4 text-gray-800">Image Input</h2>
@@ -776,7 +776,7 @@ export default function SearchPage() {
               )}
 
               {/* Filters */}
-              <div className="bg-white p-6 rounded-lg shadow-sm mb-4">
+              <div className="bg-white p-6 rounded-lg shadow-sm">
                 <FiltersPanel 
                   filters={filters}
                   onFiltersChange={setFilters}
@@ -793,8 +793,8 @@ export default function SearchPage() {
           </div>
 
           {/* Right Column - Search Results (expanded width) */}
-          <div className="lg:col-span-9 flex flex-col" style={{ maxHeight: 'calc(100vh - 160px)' }}>
-            <div className="bg-white rounded-lg shadow-sm flex flex-col overflow-hidden h-full">
+          <div className="lg:col-span-9 flex flex-col overflow-hidden">
+            <div className="bg-white rounded-lg shadow-sm flex flex-col h-full overflow-hidden">
               <div className="flex items-center justify-between p-6 pb-4 flex-shrink-0">
                 <h2 className="text-lg font-semibold text-gray-800">Search Results</h2>
               </div>

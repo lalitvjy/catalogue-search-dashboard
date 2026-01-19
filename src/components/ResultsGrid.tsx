@@ -284,7 +284,10 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
           loadMore()
         }
       },
-      { threshold: 0.1 }
+      { 
+        threshold: 0,
+        rootMargin: '200px' // Trigger 200px before the element comes into view
+      }
     )
 
     const currentTarget = observerTarget.current
@@ -453,9 +456,9 @@ export default function ResultsGrid({ results, searching, isTextSearch, onFindSi
         </div>
       )}
 
-      {/* Intersection Observer Target */}
+      {/* Intersection Observer Target - increased height and padding for better detection */}
       {hasMore && !isLoadingMore && (
-        <div ref={observerTarget} className="h-4" />
+        <div ref={observerTarget} className="h-20 py-8" />
       )}
 
       {/* End of Results Message */}

@@ -22,7 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.className} flex flex-col h-screen overflow-hidden`}>
         <Providers>
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 overflow-hidden flex flex-col">
             {children}
           </div>
           <Footer />
