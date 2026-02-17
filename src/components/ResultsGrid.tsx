@@ -248,6 +248,37 @@ function ResultCard({ result, index, startIndex, onImageClick, onFindSimilar, on
                 {descText}
               </div>
             ) : null}
+            {/* Inventory Quantities */}
+            {(() => {
+              const attrs = result.attributes || {}
+              const getVal = (key: string) => {
+                const v = attrs[key]
+                return v !== undefined && v !== '' && v !== null ? Number(v) : 0
+              }
+              const checkKeys = ['total_onhand_qty', 'total_salesmemo_qty', 'total_contractor_qty', 'total_lab_qty']
+              const hasAnyField = checkKeys.some(
+                (k) => attrs[k] !== undefined && attrs[k] !== '' && attrs[k] !== null
+              )
+              if (!hasAnyField) return null
+              const onHand = getVal('total_onhand_qty')
+              const salesMemo = getVal('total_salesmemo_qty')
+              const labContractor = getVal('total_lab_qty') + getVal('total_contractor_qty')
+              const fields = [
+                { label: 'On Hand', value: onHand },
+                { label: 'Sales Memo', value: salesMemo },
+                { label: 'Lab+Contractor', value: labContractor },
+              ]
+              return (
+                <div className="mb-2 flex items-center justify-between text-[11px]">
+                  {fields.map((f) => (
+                    <div key={f.label} className="flex items-center gap-1">
+                      <span className="text-gray-500">{f.label}</span>
+                      <span className="font-semibold text-gray-800">{f.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
             <div className="mt-1 flex items-center justify-between">
               <div className="flex-shrink-0">
                 <ActionButtons 
