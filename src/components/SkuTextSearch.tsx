@@ -63,10 +63,10 @@ export default function SkuTextSearch({
     const attrs = result.attributes || {}
 
     const descriptionCandidates: unknown[] = [
-      (attrs as { description?: unknown }).description,
       (attrs as { style_description?: unknown }).style_description,
-      (attrs as { standard_attributes?: { description?: unknown; style_description?: unknown } }).standard_attributes?.description,
-      (attrs as { standard_attributes?: { description?: unknown; style_description?: unknown } }).standard_attributes?.style_description
+      (attrs as { standard_attributes?: { style_description?: unknown } }).standard_attributes?.style_description,
+      (attrs as { description?: unknown }).description,
+      (attrs as { standard_attributes?: { description?: unknown } }).standard_attributes?.description,
     ]
 
     for (const candidate of descriptionCandidates) {

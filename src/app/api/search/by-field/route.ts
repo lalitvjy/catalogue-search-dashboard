@@ -133,7 +133,7 @@ export async function POST(req: Request) {
         file_name: item.file_name || 'Unknown',
         image_url: imageUrl,
         confidence: item.confidence || 0,
-        description: (item.description as string) || (item.attributes as Record<string, unknown>)?.description || '',
+        description: (item.style_description as string) || (item.attributes as Record<string, unknown>)?.style_description as string || '',
         price: (item.price as string) || (item.attributes as Record<string, unknown>)?.price as string || null,
         attributes: {
           category: (item.category as string) || (item.attributes as Record<string, unknown>)?.category || '',
