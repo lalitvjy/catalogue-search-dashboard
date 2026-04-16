@@ -39,14 +39,22 @@ export const authOptions: NextAuthOptions = {
         rememberMe: {}
       },
       async authorize(creds) {
-        const user = await db.user.findUnique({ where: { email: String(creds?.email) } })
-        if (!user?.passwordHash) return null
-        const ok = await bcrypt.compare(String(creds?.password), user.passwordHash)
-        return ok ? { 
-          id: user.id, 
-          email: user.email,
-          rememberMe: creds?.rememberMe === 'true'
-        } as any : null
+        try {
+          console.log('🔑 Authorize called for:', creds?.email)
+          const user = await db.user.findUnique({ where: { email: String(creds?.email) } })
+          console.log('🔑 User found:', !!user, 'Has passwordHash:', !!user?.passwordHash)
+          if (!user?.passwordHash) return null
+          const ok = await bcrypt.compare(String(creds?.password), user.passwordHash)
+          console.log('🔑 Password match:', ok)
+          return ok ? { 
+            id: user.id, 
+            email: user.email,
+            rememberMe: creds?.rememberMe === 'true'
+          } as any : null
+        } catch (err) {
+          console.error('🔑 Authorize error:', err)
+          return null
+        }
       },
     }),
   ],

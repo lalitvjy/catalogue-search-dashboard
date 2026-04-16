@@ -21,6 +21,9 @@ interface Filters {
   diamond_wt_max?: number
   ctrstone_wt_min?: number
   ctrstone_wt_max?: number
+  onhand_min?: number
+  salesmemo_min?: number
+  lab_contractor_min?: number
 }
 
 interface FiltersPanelProps {
@@ -157,7 +160,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
         newPendingFilters[key] = value as string
       } else if (key === 'confidence_min') {
         newPendingFilters[key] = value as number
-      } else if (key === 'diamond_wt_min' || key === 'diamond_wt_max' || key === 'ctrstone_wt_min' || key === 'ctrstone_wt_max') {
+      } else if (key === 'diamond_wt_min' || key === 'diamond_wt_max' || key === 'ctrstone_wt_min' || key === 'ctrstone_wt_max' || key === 'onhand_min' || key === 'salesmemo_min' || key === 'lab_contractor_min') {
         newPendingFilters[key] = value as number
       }
     }
@@ -421,6 +424,69 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
         </div>
       )}
 
+      {/* On Hand (total_onhand_qty) */}
+      {enabledFilters.includes('total_onhand_qty') && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Min On Hand: {pendingFilters.onhand_min !== undefined ? pendingFilters.onhand_min : (filters.onhand_min ?? 'Any')}
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="0"
+            value={pendingFilters.onhand_min !== undefined ? pendingFilters.onhand_min : (filters.onhand_min ?? '')}
+            onChange={(e) => {
+              const val = e.target.value === '' ? undefined : parseInt(e.target.value, 10)
+              handleFilterChange('onhand_min', val)
+            }}
+            placeholder="0"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+      )}
+
+      {/* Sales Memo (total_salesmemo_qty) */}
+      {enabledFilters.includes('total_salesmemo_qty') && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Min Sales Memo: {pendingFilters.salesmemo_min !== undefined ? pendingFilters.salesmemo_min : (filters.salesmemo_min ?? 'Any')}
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="0"
+            value={pendingFilters.salesmemo_min !== undefined ? pendingFilters.salesmemo_min : (filters.salesmemo_min ?? '')}
+            onChange={(e) => {
+              const val = e.target.value === '' ? undefined : parseInt(e.target.value, 10)
+              handleFilterChange('salesmemo_min', val)
+            }}
+            placeholder="0"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+      )}
+
+      {/* Lab+Contractor (total_lab_qty + total_contractor_qty) */}
+      {enabledFilters.includes('total_lab_contractor_qty') && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Min Lab+Contractor: {pendingFilters.lab_contractor_min !== undefined ? pendingFilters.lab_contractor_min : (filters.lab_contractor_min ?? 'Any')}
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="0"
+            value={pendingFilters.lab_contractor_min !== undefined ? pendingFilters.lab_contractor_min : (filters.lab_contractor_min ?? '')}
+            onChange={(e) => {
+              const val = e.target.value === '' ? undefined : parseInt(e.target.value, 10)
+              handleFilterChange('lab_contractor_min', val)
+            }}
+            placeholder="0"
+            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-900 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+      )}
+
       {/* Confidence Threshold */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -487,9 +553,15 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
                         ? `Center Stone WT Min: ${value}`
                         : key === 'ctrstone_wt_max'
                           ? `Center Stone WT Max: ${value}`
-                          : key === 'category'
-                            ? `Category: ${value}`
-                            : `${key}: ${value}`}
+                          : key === 'onhand_min'
+                            ? `Min On Hand: ${value}`
+                            : key === 'salesmemo_min'
+                              ? `Min Sales Memo: ${value}`
+                              : key === 'lab_contractor_min'
+                                ? `Min Lab+Contractor: ${value}`
+                                : key === 'category'
+                                  ? `Category: ${value}`
+                                  : `${key}: ${value}`}
                 <button
                   onClick={() => handleFilterChange(key as keyof Filters, undefined)}
                   className="ml-1 text-blue-600 hover:text-blue-800"

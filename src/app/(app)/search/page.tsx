@@ -38,6 +38,9 @@ interface Filters {
   diamond_wt_max?: number
   ctrstone_wt_min?: number
   ctrstone_wt_max?: number
+  onhand_min?: number
+  salesmemo_min?: number
+  lab_contractor_min?: number
 }
 
 export default function SearchPage() {
@@ -116,6 +119,22 @@ export default function SearchPage() {
         
         if (filters.ctrstone_wt_min !== undefined && ctrstoneWt < filters.ctrstone_wt_min) return false
         if (filters.ctrstone_wt_max !== undefined && ctrstoneWt > filters.ctrstone_wt_max) return false
+      }
+      // Check On Hand minimum
+      if (filters.onhand_min !== undefined) {
+        const val = Number(result.attributes?.total_onhand_qty)
+        if (isNaN(val) || val < filters.onhand_min) return false
+      }
+      // Check Sales Memo minimum
+      if (filters.salesmemo_min !== undefined) {
+        const val = Number(result.attributes?.total_salesmemo_qty)
+        if (isNaN(val) || val < filters.salesmemo_min) return false
+      }
+      // Check Lab+Contractor minimum
+      if (filters.lab_contractor_min !== undefined) {
+        const labVal = Number(result.attributes?.total_lab_qty) || 0
+        const contractorVal = Number(result.attributes?.total_contractor_qty) || 0
+        if ((labVal + contractorVal) < filters.lab_contractor_min) return false
       }
       if (filters.confidence_min && result.confidence < filters.confidence_min) {
         return false
