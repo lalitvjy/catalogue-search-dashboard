@@ -1,13 +1,13 @@
 'use client'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import ImageDrop from '@/components/ImageDrop'
 import ResultsGrid from '@/components/ResultsGrid'
-import FiltersPanel from '@/components/FiltersPanel'
+import FiltersPanel, { type FiltersPanelRef } from '@/components/FiltersPanel'
 import LogoutModal from '@/components/LogoutModal'
 import OpenSparkStudioButton from '@/components/OpenSparkStudioButton'
-import SkuTextSearch from '@/components/SkuTextSearch'
+import SkuTextSearch, { type SkuTextSearchRef } from '@/components/SkuTextSearch'
 import { useSearchInteractions } from '@/hooks/useSearchInteractions'
 import posthog from 'posthog-js'
 import { useImpressionTracking } from '@/hooks/useImpressionTracking'
@@ -53,6 +53,13 @@ export default function SearchPage() {
   const [searching, setSearching] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
+
+  // Refs and state for fixed bottom action bar
+  const filtersPanelRef = useRef<FiltersPanelRef>(null)
+  const skuTextSearchRef = useRef<SkuTextSearchRef>(null)
+  const [hasFilterChanges, setHasFilterChanges] = useState(false)
+  const [canTextSearch, setCanTextSearch] = useState(false)
+  const [hasActiveFilters, setHasActiveFilters] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [triggerSearch, setTriggerSearch] = useState(0)
   const [searchImageUrl, setSearchImageUrl] = useState<string | null>(null)
@@ -787,6 +794,7 @@ export default function SearchPage() {
                   <div className="bg-white p-6 rounded-lg shadow-sm">
                     <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
                     <SkuTextSearch
+                      ref={skuTextSearchRef}
                       onSearchResults={handleSearchResults}
                       onSearching={setSearching}
                       onImageUpload={handleImageUpload}
@@ -794,6 +802,8 @@ export default function SearchPage() {
                       scoreThreshold={filters.confidence_min || 0.1}
                       resultSize={resultSize}
                       allowedTabs={allowedTabs}
+                      hideSearchButton
+                      onCanSearchChange={setCanTextSearch}
                     />
                   </div>
                 )}
@@ -801,6 +811,7 @@ export default function SearchPage() {
                 {/* Filters */}
                 <div className="bg-white p-6 rounded-lg shadow-sm">
                   <FiltersPanel 
+                    ref={filtersPanelRef}
                     filters={filters}
                     onFiltersChange={setFilters}
                     results={results}
@@ -810,9 +821,40 @@ export default function SearchPage() {
                     onResultSizeChange={handleResultSizeChange}
                     onApplyAllFilters={handleApplyAllFilters}
                     enabledFilters={enabledFilters}
+                    hideApplyButton
+                    onFilterChangeStatusChange={setHasFilterChanges}
+                    onActiveFiltersChange={setHasActiveFilters}
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Fixed bottom action bar */}
+            <div className="flex-shrink-0 border-t border-gray-200 bg-gray-50 p-3 flex items-center gap-2">
+              <button
+                onClick={() => {
+                  if (hasFilterChanges) filtersPanelRef.current?.applyFilters()
+                  if (canTextSearch) skuTextSearchRef.current?.search()
+                }}
+                disabled={searching || (!canTextSearch && !hasFilterChanges)}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {searching ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  </div>
+                ) : (
+                  'Search'
+                )}
+              </button>
+              {hasActiveFilters && (
+                <button
+                  onClick={() => filtersPanelRef.current?.clearFilters()}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           </div>
 

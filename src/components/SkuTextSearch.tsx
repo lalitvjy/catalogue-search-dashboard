@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { useSession } from 'next-auth/react'
 import posthog from 'posthog-js'
 import { useImpressionTracking } from '@/hooks/useImpressionTracking'
@@ -19,6 +19,10 @@ interface SearchResult {
   price?: string | null
 }
 
+export interface SkuTextSearchRef {
+  search: () => void
+}
+
 interface SkuTextSearchProps {
   onSearchResults?: (results: SearchResult[], isTextSearch?: boolean) => void
   onSearching?: (searching: boolean) => void
@@ -28,9 +32,11 @@ interface SkuTextSearchProps {
   scoreThreshold?: number
   resultSize?: number
   allowedTabs?: string[]
+  hideSearchButton?: boolean
+  onCanSearchChange?: (canSearch: boolean) => void
 }
 
-export default function SkuTextSearch({ 
+const SkuTextSearch = forwardRef<SkuTextSearchRef, SkuTextSearchProps>(function SkuTextSearch({ 
   onSearchResults, 
   onSearching,
   onImageUpload,
@@ -38,8 +44,10 @@ export default function SkuTextSearch({
   onSearchModeChange,
   scoreThreshold,
   resultSize,
-  allowedTabs = ['sku', 'text']
-}: SkuTextSearchProps) {
+  allowedTabs = ['sku', 'text'],
+  hideSearchButton = false,
+  onCanSearchChange
+}, ref) {
   const { data: session } = useSession()
   
   // Determine initial search mode based on allowed tabs
@@ -54,6 +62,19 @@ export default function SkuTextSearch({
   const [textValue, setTextValue] = useState('')
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const canSearch = searchMode === 'sku' ? skuValue.trim() !== '' : textValue.trim() !== ''
+
+  useImperativeHandle(ref, () => ({
+    search: () => {
+      if (searchMode === 'sku') handleSkuSearch()
+      else handleTextSearch()
+    }
+  }))
+
+  useEffect(() => {
+    onCanSearchChange?.(!searching && canSearch)
+  }, [searching, canSearch, onCanSearchChange])
 
   const resolveDescription = (result: SearchResult): string | null => {
     if (typeof result.description === 'string' && result.description.trim() !== '') {
@@ -309,17 +330,19 @@ export default function SkuTextSearch({
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-800 placeholder-gray-500"
               disabled={searching}
             />
-            <button
-              onClick={handleSkuSearch}
-              disabled={searching || !skuValue.trim()}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {searching ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                'Search'
-              )}
-            </button>
+            {!hideSearchButton && (
+              <button
+                onClick={handleSkuSearch}
+                disabled={searching || !skuValue.trim()}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {searching ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  'Search'
+                )}
+              </button>
+            )}
           </div>
           <p className="text-xs text-gray-500">
             Search for products using their SKU code.
@@ -344,17 +367,19 @@ export default function SkuTextSearch({
               className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-800 placeholder-gray-500"
               disabled={searching}
             />
-            <button
-              onClick={handleTextSearch}
-              disabled={searching || !textValue.trim()}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              {searching ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                'Search'
-              )}
-            </button>
+            {!hideSearchButton && (
+              <button
+                onClick={handleTextSearch}
+                disabled={searching || !textValue.trim()}
+                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {searching ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  'Search'
+                )}
+              </button>
+            )}
           </div>
           <p className="text-xs text-gray-500">
             Describe the product you&apos;re looking for in natural language.
@@ -363,5 +388,6 @@ export default function SkuTextSearch({
       )}
     </div>
   )
-}
+})
 
+export default SkuTextSearch

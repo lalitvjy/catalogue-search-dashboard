@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { useImpressionTracking } from '@/hooks/useImpressionTracking'
 
 interface SearchResult {
@@ -26,6 +26,11 @@ interface Filters {
   lab_contractor_min?: number
 }
 
+export interface FiltersPanelRef {
+  applyFilters: () => void
+  clearFilters: () => void
+}
+
 interface FiltersPanelProps {
   filters: Filters
   onFiltersChange: (filters: Filters) => void
@@ -36,10 +41,13 @@ interface FiltersPanelProps {
   onResultSizeChange?: (size: number) => void
   onApplyAllFilters?: (updatedFilters?: Filters) => void
   enabledFilters?: string[]
+  hideApplyButton?: boolean
+  onFilterChangeStatusChange?: (hasChanges: boolean) => void
+  onActiveFiltersChange?: (hasActive: boolean) => void
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters, enabledFilters = [] }: FiltersPanelProps) {
+const FiltersPanel = forwardRef<FiltersPanelRef, FiltersPanelProps>(function FiltersPanel({ filters, onFiltersChange, results, onApplyConfidenceFilter, isSearching = false, resultSize = 20, onResultSizeChange, onApplyAllFilters, enabledFilters = [], hideApplyButton = false, onFilterChangeStatusChange, onActiveFiltersChange }, ref) {
   const [tempConfidence, setTempConfidence] = useState<number>(filters.confidence_min || 0)
   const [hasConfidenceChanged, setHasConfidenceChanged] = useState(false)
   const [hasAnyFilterChanged, setHasAnyFilterChanged] = useState(false)
@@ -182,6 +190,15 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
     setHasAnyFilterChanged(true)
   }
 
+  useImperativeHandle(ref, () => ({
+    applyFilters: handleApplyAllFilters,
+    clearFilters
+  }))
+
+  useEffect(() => {
+    onFilterChangeStatusChange?.(hasAnyFilterChanged)
+  }, [hasAnyFilterChanged, onFilterChangeStatusChange])
+
   const handleApplyAllFilters = () => {
     // Apply all pending filter changes
     const newFilters = { ...filters, ...pendingFilters }
@@ -243,6 +260,10 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
 
   const hasActiveFilters = Object.keys(filters).length > 0
 
+  useEffect(() => {
+    onActiveFiltersChange?.(hasActiveFilters)
+  }, [hasActiveFilters, onActiveFiltersChange])
+
   // Filter results based on current filters
   const filteredResults = useMemo(() => {
     return results.filter(result => {
@@ -261,7 +282,7 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
       <div className="flex items-center justify-between">
         <h3 className="font-medium text-gray-900 text-sm sm:text-base">Filters</h3>
         <div className="flex items-center space-x-3">
-          {hasAnyFilterChanged && (
+          {!hideApplyButton && hasAnyFilterChanged && (
             <button
               onClick={handleApplyAllFilters}
               disabled={isSearching}
@@ -575,4 +596,6 @@ export default function FiltersPanel({ filters, onFiltersChange, results, onAppl
       )}
     </div>
   )
-}
+})
+
+export default FiltersPanel
