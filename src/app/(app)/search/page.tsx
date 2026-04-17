@@ -754,10 +754,10 @@ export default function SearchPage() {
 
         {/* Desktop Layout - 2-column layout (lg and above) */}
         <div className="hidden lg:grid lg:grid-cols-12 lg:gap-8 h-full">
-          {/* Left Column - Image Input and Filters (fixed width) */}
-          <div className="lg:col-span-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-            <div className="space-y-6 pb-6">
-              {/* Image Input */}
+          {/* Left Column - Image Input (sticky) + scrollable rest */}
+          <div className="lg:col-span-3 flex flex-col overflow-hidden">
+            {/* Image Input - stays fixed at top */}
+            <div className="flex-shrink-0 pb-6">
               <div className="bg-white p-6 rounded-lg shadow-sm">
                 <h2 className="text-lg font-semibold mb-4 text-gray-800">Image Input</h2>
                 <ImageDrop 
@@ -777,36 +777,41 @@ export default function SearchPage() {
                   resultSize={resultSize}
                 />
               </div>
+            </div>
 
-              {/* SKU/Text Search (conditionally shown) */}
-              {allowedTabs.length > 0 && (
+            {/* Scrollable area for text search + filters */}
+            <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div className="space-y-6 pb-6">
+                {/* SKU/Text Search (conditionally shown) */}
+                {allowedTabs.length > 0 && (
+                  <div className="bg-white p-6 rounded-lg shadow-sm">
+                    <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
+                    <SkuTextSearch
+                      onSearchResults={handleSearchResults}
+                      onSearching={setSearching}
+                      onImageUpload={handleImageUpload}
+                      onSkuSearch={(sku) => setLastSkuSearch(sku)}
+                      scoreThreshold={filters.confidence_min || 0.1}
+                      resultSize={resultSize}
+                      allowedTabs={allowedTabs}
+                    />
+                  </div>
+                )}
+
+                {/* Filters */}
                 <div className="bg-white p-6 rounded-lg shadow-sm">
-                  <h2 className="text-lg font-semibold mb-4 text-gray-800">Search With Text</h2>
-                  <SkuTextSearch
-                    onSearchResults={handleSearchResults}
-                    onSearching={setSearching}
-                    onImageUpload={handleImageUpload}
-                    onSkuSearch={(sku) => setLastSkuSearch(sku)}
-                    scoreThreshold={filters.confidence_min || 0.1}
+                  <FiltersPanel 
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    results={results}
+                    onApplyConfidenceFilter={handleApplyConfidenceFilter}
+                    isSearching={searching}
                     resultSize={resultSize}
-                    allowedTabs={allowedTabs}
+                    onResultSizeChange={handleResultSizeChange}
+                    onApplyAllFilters={handleApplyAllFilters}
+                    enabledFilters={enabledFilters}
                   />
                 </div>
-              )}
-
-              {/* Filters */}
-              <div className="bg-white p-6 rounded-lg shadow-sm">
-                <FiltersPanel 
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  results={results}
-                  onApplyConfidenceFilter={handleApplyConfidenceFilter}
-                  isSearching={searching}
-                  resultSize={resultSize}
-                  onResultSizeChange={handleResultSizeChange}
-                  onApplyAllFilters={handleApplyAllFilters}
-                  enabledFilters={enabledFilters}
-                />
               </div>
             </div>
           </div>
